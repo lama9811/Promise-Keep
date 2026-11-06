@@ -30,7 +30,9 @@ Plan and schedule: APPROACH.md. Full spec: ~/Desktop/Promise-Keeper-PRD-and-Buil
 - Python is 3.13 (`backend/.venv`); 3.11 isn't installed.
 
 ## Layout
-- `backend/main.py`: FastAPI routes. `paypal.py`: httpx calls (token, order, capture,
+- `backend/main.py`: FastAPI routes (promises). `proof_routes.py`: check-in, live word, photo referee.
+  `views.py`: what the browser may see. `checks.py`: haversine, phash duplicates, EXIF date. `words.py`: 200 live words.
+  Previously in main: `paypal.py`: httpx calls (token, order, capture,
   refund, payouts). `ai.py`: Gemini JSON-mode calls. `deals.py`: validates AI output
   in code. `settle_math.py`: pure pot-split math. `db.py`: Supabase helpers.
   `schema.sql`: paste into Supabase SQL Editor.
@@ -42,11 +44,16 @@ Plan and schedule: APPROACH.md. Full spec: ~/Desktop/Promise-Keeper-PRD-and-Buil
 - Env: `backend/.env` (see `.env.example`), `frontend/.env.local` (`VITE_API_URL`, `VITE_PAYPAL_CLIENT_ID`).
 
 ## Status (update as steps finish)
-- Done: Step 1 skeleton, Step 2 PayPal sandbox smoke test (capture, refund and payout all succeeded),
-  Step 4 F1 + F2 code (parse, create, capture, promise page), the frontend redesign, and the settle split math with tests.
-- Waiting: `schema.sql` not yet run in Supabase, so the real pay → promise page flow is untested.
-- Next: Step 5 gym check-in + live-word photo (F3, F4), then quiz (F5), settle + group pots
-  (F6, F7), referee + demo mode + deploy (F8, F9).
+- Promises can be about anything (user decision, Nov 6). `promises.activity` is free text;
+  `promises.proof` is how it's proven: `gym` (150 m + 30 min + live-word photo), `photo`
+  (live-word photo of doing it), `quiz` (Step 6), `friend` (F8).
+- Done: Steps 1, 2 (PayPal sandbox smoke test passed), 4 (F1, F2), 5 backend + screens
+  (check-in, live word, photo referee), settle split math, light redesign.
+- Waiting: `schema.sql` not yet run in Supabase, so nothing has been tested against the real DB yet.
+- Next: quiz (F5), settle + group pots (F6, F7), friend referee (F8), demo mode + deploy (F9).
+- Rules added beyond the PRD: the live word is issued at "I'm done" (not at check-in), because a
+  10-minute word can't survive a 30-minute stay; one counted proof per 12 hours
+  (`promises.last_counted_at` compare-and-set).
 
 ## Design system (keep new screens consistent)
 - Light and bright. Canvas `#f6f7fb`, surface white, line `#e3e6f0`, ink `#0a1240`,
@@ -66,7 +73,8 @@ Plan and schedule: APPROACH.md. Full spec: ~/Desktop/Promise-Keeper-PRD-and-Buil
 
 ## Gotchas
 - Gemini: pin `api_version="v1beta"` (already in `ai.py`), or JSON mode sometimes fails.
-  Model `gemini-3.5-flash`, fallback `gemini-2.5-flash` (3.7 and 3.8 returned 503s on Nov 6).
+  Model `gemini-3.5-flash`, fallbacks `gemini-3.5-flash-lite`, `gemini-2.5-flash` with backoff. On Nov 6
+  the flash models often returned 503 while flash-lite kept answering.
 - PayPal sandbox checkout page can hang on "reviewing payment" when an order has no
   return URL. The order is still APPROVED. The in-app JS button pop-up isn't affected.
 - `@paypal/react-paypal-js` v10: use the classic `PayPalScriptProvider` + `PayPalButtons`
