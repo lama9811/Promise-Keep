@@ -13,6 +13,8 @@ import config
 import db
 import deals
 import paypal
+import views
+from proof_routes import router as proof_router
 
 app = FastAPI(title="Promise Keeper")
 
@@ -22,6 +24,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(proof_router)
 
 log = logging.getLogger("promise_keeper")
 
@@ -163,7 +166,7 @@ def capture_promise(promise_id: str, body: CaptureIn):
     if promise["paypal_order_id"] != body.order_id:
         raise HTTPException(400, "order does not belong to this promise")
     if promise["status"] != "draft":
-        return _promise_view(promise)  # already captured: safe to call twice
+        return views.promise_view(promise)  # already captured: safe to call twice
     try:
         capture = paypal.capture_order(body.order_id)
     except paypal.PayPalError:
@@ -180,57 +183,14 @@ def capture_promise(promise_id: str, body: CaptureIn):
     if capture["status"] == "COMPLETED":
         fields["status"] = "active"
     promise = db.update("promises", promise_id, fields)
-    return _promise_view(promise)
+    return views.promise_view(promise)
 
 
 # ---------- Reading ----------
-
-def mask_email(value: str | None) -> str | None:
-    """sb-pdq7b53766632@personal.example.com -> sb-p…@personal.example.com"""
-    if not value or "@" not in value:
-        return value
-    local, domain = value.split("@", 1)
-    return f"{local[:4]}…@{domain}"
-
-
-def _promise_view(promise: dict) -> dict:
-    """What the promise page shows. Anyone with the link (the promise UUID) can
-    see it, as in the PRD (no accounts), so it leaves out gym coordinates and
-    shows emails masked. PayPal IDs stay: judges should see that money moved."""
-    proofs = db.where("proofs", order_by="started_at", promise_id=promise["id"])
-    done = sum(1 for p in proofs if p.get("counted"))
-    pot = db.get("pots", promise["pot_id"])
-    user = db.get("users", promise["user_id"])
-    return {
-        "id": promise["id"],
-        "pot_id": promise["pot_id"],
-        "name": user["name"] if user else "",
-        "raw_text": promise["raw_text"],
-        "summary": promise["summary"],
-        "activity": promise["activity"],
-        "proof": promise["proof"],
-        "proof_hint": promise.get("proof_hint"),
-        "target_count": promise["target_count"],
-        "done_count": done,
-        "stake_cents": promise["stake_cents"],
-        "recipient": mask_email(promise["recipient"]),
-        "deadline": pot["deadline"] if pot else None,
-        "status": promise["status"],
-        "outcome": promise.get("outcome"),
-        "has_gym": promise["gym_lat"] is not None,
-        "paypal_order_id": promise["paypal_order_id"],
-        "paypal_capture_id": promise["paypal_capture_id"],
-        "proofs": [
-            {k: p.get(k) for k in ("id", "kind", "started_at", "ended_at", "ai_verdict", "ai_reason",
-                                    "ai_confidence", "referee_decision", "counted")}
-            for p in proofs
-        ],
-    }
-
 
 @app.get("/promises/{promise_id}")
 def get_promise(promise_id: str):
     promise = db.get("promises", promise_id)
     if not promise:
         raise HTTPException(404, "promise not found")
-    return _promise_view(promise)
+    return views.promise_view(promise)

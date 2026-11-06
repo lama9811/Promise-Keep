@@ -98,3 +98,38 @@ question. Otherwise set needs_clarification to null."""
 def parse_promise(text: str, now: datetime, tz: str) -> dict:
     prompt = PARSE_PROMPT.format(today=now.strftime("%A %Y-%m-%d %H:%M"), tz=tz, text=text.replace('"', "'"))
     return generate_json(prompt, Deal)
+
+
+# ---------- Prompt 2: check a live photo (F4), for any activity ----------
+
+class PhotoVerdict(BaseModel):
+    word_visible: bool
+    activity_matches: bool
+    photo_of_a_screen: bool
+    confidence: float = Field(ge=0, le=1)
+    reason: str
+
+
+PHOTO_PROMPT = """You are a fair referee for a habit app.
+The user promised to: {activity}.
+{place_line}They were told to hold up a paper or screen showing the word: "{live_word}".
+A good proof photo shows: {hint}
+Look at the photo and return JSON:
+- word_visible (true/false): is the exact word "{live_word}" clearly readable?
+- activity_matches (true/false): does the photo plausibly show them doing this, or at the right place?
+- photo_of_a_screen (true/false): is the whole photo a picture of another screen or a printed picture?
+- confidence (0 to 1)
+- reason (one friendly sentence the user will see)
+Be strict about the word. Be fair about the activity: small or home gyms count,
+and the photo only needs to make the activity believable, not perfect."""
+
+
+def check_photo(image: bytes, mime: str, live_word: str, activity: str, proof: str, hint: str) -> dict:
+    place_line = "They claim they are at a gym right now.\n" if proof == "gym" else ""
+    prompt = PHOTO_PROMPT.format(
+        activity=activity.replace('"', "'"),
+        place_line=place_line,
+        live_word=live_word,
+        hint=(hint or "them doing it").replace('"', "'"),
+    )
+    return generate_json(prompt, PhotoVerdict, images=[(image, mime)])
