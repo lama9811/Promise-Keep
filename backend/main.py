@@ -1,4 +1,5 @@
 """Promise Keeper API."""
+import logging
 import re
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -21,6 +22,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+log = logging.getLogger("promise_keeper")
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -51,8 +54,9 @@ def parse_promise(body: ParseIn):
     now = datetime.now(ZoneInfo(tz))
     try:
         raw = ai.parse_promise(body.text, now, tz)
-    except ai.AIError as e:
-        raise HTTPException(503, f"The AI is busy, try again in a moment. ({e})")
+    except ai.AIError:
+        log.exception("promise parse failed")
+        raise HTTPException(503, "The AI is busy, try again in a moment.")
     return deals.normalize_deal(raw, tz)
 
 
@@ -136,8 +140,9 @@ def create_promise(body: PromiseIn):
     })
     try:
         order = paypal.create_order(body.stake_cents, promise["id"])
-    except paypal.PayPalError as e:
-        raise HTTPException(502, f"PayPal could not create the order: {e.status}")
+    except paypal.PayPalError:
+        log.exception("create_order failed")
+        raise HTTPException(502, "PayPal could not create the order. Please try again.")
     db.update("promises", promise["id"], {"paypal_order_id": order["id"]})
     return {"promise_id": promise["id"], "pot_id": pot["id"], "order_id": order["id"]}
 
@@ -157,9 +162,17 @@ def capture_promise(promise_id: str, body: CaptureIn):
         return _promise_view(promise)  # already captured: safe to call twice
     try:
         capture = paypal.capture_order(body.order_id)
-    except paypal.PayPalError as e:
-        raise HTTPException(502, f"PayPal could not take the payment: {e.status}")
+    except paypal.PayPalError:
+        log.exception("capture_order failed")
+        raise HTTPException(502, "PayPal could not take the payment. Please try again.")
     fields = {"paypal_capture_id": capture["id"]}
+    # Trust the PayPal account that actually paid, not the email typed in the form.
+    payer_email = (capture.get("payer_email") or "").strip().lower()
+    if payer_email:
+        user = db.get("users", promise["user_id"])
+        if user and user["paypal_email"] != payer_email:
+            verified = _find_or_create_user(user["name"], payer_email)
+            fields["user_id"] = verified["id"]
     if capture["status"] == "COMPLETED":
         fields["status"] = "active"
     promise = db.update("promises", promise_id, fields)
@@ -168,7 +181,18 @@ def capture_promise(promise_id: str, body: CaptureIn):
 
 # ---------- Reading ----------
 
+def mask_email(value: str | None) -> str | None:
+    """sb-pdq7b53766632@personal.example.com -> sb-p…@personal.example.com"""
+    if not value or "@" not in value:
+        return value
+    local, domain = value.split("@", 1)
+    return f"{local[:4]}…@{domain}"
+
+
 def _promise_view(promise: dict) -> dict:
+    """What the promise page shows. Anyone with the link (the promise UUID) can
+    see it, as in the PRD (no accounts), so it leaves out gym coordinates and
+    shows emails masked. PayPal IDs stay: judges should see that money moved."""
     proofs = db.where("proofs", order_by="started_at", promise_id=promise["id"])
     done = sum(1 for p in proofs if p.get("counted"))
     pot = db.get("pots", promise["pot_id"])
@@ -183,12 +207,11 @@ def _promise_view(promise: dict) -> dict:
         "target_count": promise["target_count"],
         "done_count": done,
         "stake_cents": promise["stake_cents"],
-        "recipient": promise["recipient"],
+        "recipient": mask_email(promise["recipient"]),
         "deadline": pot["deadline"] if pot else None,
         "status": promise["status"],
         "outcome": promise.get("outcome"),
-        "gym_lat": promise["gym_lat"],
-        "gym_lng": promise["gym_lng"],
+        "has_gym": promise["gym_lat"] is not None,
         "paypal_order_id": promise["paypal_order_id"],
         "paypal_capture_id": promise["paypal_capture_id"],
         "proofs": [

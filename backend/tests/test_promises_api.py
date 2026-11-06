@@ -112,3 +112,31 @@ def test_create_validation(client):
 
 def test_unknown_promise_is_404(client):
     assert client.get("/promises/not-a-uuid").status_code == 404
+
+
+# ---------- Security ----------
+
+def test_payer_identity_comes_from_paypal(client, fake_db, fake_paypal):
+    """Someone types another person's email; PayPal says who really paid."""
+    fake_paypal.payer_email = "Real.Payer@example.com"
+    c = client.post("/promises", json=promise_body(paypal_email="victim@example.com")).json()
+    client.post(f"/promises/{c['promise_id']}/capture", json={"order_id": c["order_id"]})
+    promise = fake_db.get("promises", c["promise_id"])
+    owner = fake_db.get("users", promise["user_id"])
+    assert owner["paypal_email"] == "real.payer@example.com"
+
+
+def test_public_view_hides_location_and_masks_emails(client):
+    c = client.post("/promises", json=promise_body()).json()
+    p = client.get(f"/promises/{c['promise_id']}").json()
+    assert "gym_lat" not in p and "gym_lng" not in p
+    assert p["has_gym"] is True
+    assert p["recipient"] == "alex…@example.com"
+
+
+def test_ai_error_details_not_leaked(client, monkeypatch):
+    def boom(*a):
+        raise ai.AIError("secret internal detail")
+    monkeypatch.setattr(ai, "parse_promise", boom)
+    r = client.post("/promises/parse", json={"text": "gym 3x"})
+    assert "secret internal detail" not in r.text

@@ -88,7 +88,9 @@ def create_order(amount_cents: int, promise_id: str) -> dict:
 def capture_order(order_id: str) -> dict:
     """Take the money after the buyer approves.
 
-    Returns {'id': capture_id, 'status': ...}. Only status COMPLETED means the
+    Returns {'id', 'status', 'payer_email'}. payer_email is the PayPal account
+    that really paid, so it is trusted over anything typed in the form.
+    Only status COMPLETED means the
     money is ours: callers must not mark a promise active on PENDING (that
     needs a PAYMENT.CAPTURE.COMPLETED webhook first).
     """
@@ -101,7 +103,8 @@ def capture_order(order_id: str) -> dict:
     capture = data["purchase_units"][0]["payments"]["captures"][0]
     if capture["status"] not in ("COMPLETED", "PENDING"):
         raise PayPalError(200, f"capture status {capture['status']}")
-    return {"id": capture["id"], "status": capture["status"]}
+    payer_email = (data.get("payer") or {}).get("email_address")
+    return {"id": capture["id"], "status": capture["status"], "payer_email": payer_email}
 
 
 def refund_capture(capture_id: str, request_id: str) -> dict:

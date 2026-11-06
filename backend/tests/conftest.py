@@ -39,6 +39,7 @@ class FakeDB:
 class FakePayPal:
     def __init__(self):
         self.capture_status = "COMPLETED"
+        self.payer_email = None
         self.orders = []
 
     def create_order(self, cents, promise_id):
@@ -46,7 +47,7 @@ class FakePayPal:
         return {"id": f"ORDER-{len(self.orders)}", "approve_url": "https://pp"}
 
     def capture_order(self, order_id):
-        return {"id": f"CAP-{order_id}", "status": self.capture_status}
+        return {"id": f"CAP-{order_id}", "status": self.capture_status, "payer_email": self.payer_email}
 
 
 @pytest.fixture

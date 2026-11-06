@@ -28,7 +28,7 @@ def fake_http(monkeypatch):
         if url.endswith("/v2/checkout/orders"):
             return httpx.Response(201, json={"id": "ORDER1", "links": [{"rel": "approve", "href": "https://pp/approve"}]}, request=req)
         if url.endswith("/capture"):
-            return httpx.Response(201, json={"purchase_units": [{"payments": {"captures": [{"id": "CAP1", "status": "COMPLETED"}]}}]}, request=req)
+            return httpx.Response(201, json={"payer": {"email_address": "sam@example.com"}, "purchase_units": [{"payments": {"captures": [{"id": "CAP1", "status": "COMPLETED"}]}}]}, request=req)
         if url.endswith("/refund"):
             return httpx.Response(201, json={"id": "REF1", "status": "COMPLETED"}, request=req)
         if url.endswith("/v1/payments/payouts"):
@@ -44,7 +44,7 @@ def fake_http(monkeypatch):
 def test_order_capture_refund_payout_flow(fake_http):
     order = paypal.create_order(2000, "p1")
     assert order == {"id": "ORDER1", "approve_url": "https://pp/approve"}
-    assert paypal.capture_order("ORDER1") == {"id": "CAP1", "status": "COMPLETED"}
+    assert paypal.capture_order("ORDER1") == {"id": "CAP1", "status": "COMPLETED", "payer_email": "sam@example.com"}
     assert paypal.refund_capture("CAP1", "refund-p1") == {"id": "REF1", "status": "COMPLETED"}
     assert paypal.send_payouts("pot-9", [("a@x.com", 667, "hi"), ("b@x.com", 666, "hi")]) == {"id": "BATCH1", "status": "PENDING"}
 
