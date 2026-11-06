@@ -85,8 +85,13 @@ def create_order(amount_cents: int, promise_id: str) -> dict:
     return {"id": data["id"], "approve_url": approve}
 
 
-def capture_order(order_id: str) -> str:
-    """Take the money after the buyer approves. Returns the capture ID."""
+def capture_order(order_id: str) -> dict:
+    """Take the money after the buyer approves.
+
+    Returns {'id': capture_id, 'status': ...}. Only status COMPLETED means the
+    money is ours: callers must not mark a promise active on PENDING (that
+    needs a PAYMENT.CAPTURE.COMPLETED webhook first).
+    """
     resp = httpx.post(
         f"{config.PAYPAL_BASE}/v2/checkout/orders/{order_id}/capture",
         headers=_headers(f"capture-{order_id}"),
@@ -96,7 +101,7 @@ def capture_order(order_id: str) -> str:
     capture = data["purchase_units"][0]["payments"]["captures"][0]
     if capture["status"] not in ("COMPLETED", "PENDING"):
         raise PayPalError(200, f"capture status {capture['status']}")
-    return capture["id"]
+    return {"id": capture["id"], "status": capture["status"]}
 
 
 def refund_capture(capture_id: str, request_id: str) -> dict:

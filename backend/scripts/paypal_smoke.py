@@ -36,8 +36,11 @@ def main() -> None:
     print(f"\nApprove here as a sandbox personal account:\n  {order['approve_url']}\n")
     input("Press Enter after approving... ")
 
-    capture_id = paypal.capture_order(order["id"])
-    print(f"Capture ID: {capture_id}")
+    capture = paypal.capture_order(order["id"])
+    capture_id = capture["id"]
+    print(f"Capture ID: {capture_id} ({capture['status']})")
+    if capture["status"] != "COMPLETED":
+        sys.exit("Capture is not COMPLETED, so the money is not settled yet. Stopping before refund.")
 
     refund = paypal.refund_capture(capture_id, f"refund-smoke-{run}")
     print(f"Refund ID: {refund['id']} ({refund['status']})")

@@ -90,7 +90,8 @@ create index if not exists proofs_promise_idx on proofs(promise_id);
 create index if not exists payouts_pot_idx on payouts(pot_id);
 create index if not exists pots_unsettled_idx on pots(deadline) where settled_at is null;
 
--- Photo storage bucket.
+-- Photo storage bucket. Private: photos are only shown through short-lived
+-- signed URLs that the server creates after checking who is asking.
 insert into storage.buckets (id, name, public)
-values ('proofs', 'proofs', true)
+values ('proofs', 'proofs', false)
 on conflict (id) do nothing;

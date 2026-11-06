@@ -44,7 +44,7 @@ def fake_paypal(monkeypatch):
 def test_order_capture_refund_payout_flow(fake_paypal):
     order = paypal.create_order(2000, "p1")
     assert order == {"id": "ORDER1", "approve_url": "https://pp/approve"}
-    assert paypal.capture_order("ORDER1") == "CAP1"
+    assert paypal.capture_order("ORDER1") == {"id": "CAP1", "status": "COMPLETED"}
     assert paypal.refund_capture("CAP1", "refund-p1") == {"id": "REF1", "status": "COMPLETED"}
     assert paypal.send_payouts("pot-9", [("a@x.com", 667, "hi"), ("b@x.com", 666, "hi")]) == {"id": "BATCH1", "status": "PENDING"}
 

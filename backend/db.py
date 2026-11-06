@@ -46,7 +46,16 @@ def update(table: str, id: str, fields: dict) -> dict:
 
 
 def upload_photo(path: str, data: bytes, content_type: str = "image/jpeg") -> str:
-    """Save a photo to the proofs bucket and return its public URL."""
-    bucket = client().storage.from_(PHOTO_BUCKET)
-    bucket.upload(path, data, {"content-type": content_type})
-    return bucket.get_public_url(path)
+    """Save a photo to the private proofs bucket. Returns the storage path.
+
+    Use an unguessable path (e.g. f"{promise_id}/{uuid4().hex}.jpg").
+    """
+    client().storage.from_(PHOTO_BUCKET).upload(path, data, {"content-type": content_type})
+    return path
+
+
+def photo_url(path: str, expires_in: int = 600) -> str:
+    """Short-lived signed URL. Only call after checking the requester may see it
+    (the promise owner or a member of the same pot)."""
+    res = client().storage.from_(PHOTO_BUCKET).create_signed_url(path, expires_in)
+    return res.get("signedURL") or res.get("signedUrl")
