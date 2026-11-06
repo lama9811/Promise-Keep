@@ -50,6 +50,13 @@ def update(table: str, id: str, fields: dict) -> dict:
     return _table(table).update(fields).eq("id", id).execute().data[0]
 
 
+def update_if_null(table: str, id: str, fields: dict, null_column: str) -> dict | None:
+    """Update only if null_column is still empty. Returns None if someone got there first,
+    so two requests can never both write a verdict."""
+    rows = _table(table).update(fields).eq("id", id).is_(null_column, "null").execute().data
+    return rows[0] if rows else None
+
+
 def upload_photo(path: str, data: bytes, content_type: str = "image/jpeg") -> str:
     """Save a photo to the private proofs bucket. Returns the storage path.
 

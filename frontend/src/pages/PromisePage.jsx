@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { motion } from 'motion/react'
 import { api } from '../api'
 import { formatCents } from '../money'
 import CoinStage from '../three/CoinStage'
+import ProvePanel from '../components/ProvePanel'
 import { setCoin } from '../three/coinStore'
 
 const EASE = [0.16, 1, 0.3, 1]
-const NOUN = { gym: ['gym visit', 'gym visits'], study: ['study session', 'study sessions'], run: ['run', 'runs'] }
 
 function timeLeft(deadline) {
   const ms = new Date(deadline) - new Date()
@@ -37,27 +37,38 @@ export default function PromisePage() {
   const { id } = useParams()
   const [p, setP] = useState(null)
   const [missing, setMissing] = useState(false)
+  const [demoAvailable, setDemoAvailable] = useState(false)
+
+  const show = useCallback((data) => {
+    setP(data)
+    const outcome = data.outcome || (data.status === 'won' || data.status === 'lost' ? data.status : null)
+    setCoin({
+      mode: data.status === 'draft' ? 'deal' : 'progress',
+      stakeCents: data.stake_cents,
+      done: data.done_count,
+      target: data.target_count,
+      outcome,
+    })
+  }, [])
+
+  // Pass fresh data in, or call with nothing to reload from the server.
+  const refresh = useCallback(
+    (data) => (data ? show(data) : api(`/promises/${id}`).then(show).catch(() => {})),
+    [id, show],
+  )
 
   useEffect(() => {
     let alive = true
     api(`/promises/${id}`)
-      .then((data) => {
-        if (!alive) return
-        setP(data)
-        const outcome = data.outcome || (data.status === 'won' || data.status === 'lost' ? data.status : null)
-        setCoin({
-          mode: data.status === 'draft' ? 'deal' : 'progress',
-          stakeCents: data.stake_cents,
-          done: data.done_count,
-          target: data.target_count,
-          outcome,
-        })
-      })
+      .then((data) => alive && show(data))
       .catch(() => alive && setMissing(true))
+    api('/health')
+      .then((h) => alive && setDemoAvailable(Boolean(h.demo_mode)))
+      .catch(() => {})
     return () => {
       alive = false
     }
-  }, [id])
+  }, [id, show])
 
   if (missing) {
     return (
@@ -72,8 +83,6 @@ export default function PromisePage() {
       </main>
     )
   }
-
-  const noun = p ? NOUN[p.type][p.target_count === 1 ? 0 : 1] : ''
 
   return (
     <main>
@@ -93,7 +102,7 @@ export default function PromisePage() {
                 <span className="pb-2 font-display text-2xl font-semibold leading-tight text-ink-soft">
                   of {p.target_count}
                   <br />
-                  {noun}
+                  {p.target_count === 1 ? 'time' : 'times'}
                 </span>
               </div>
 
@@ -102,6 +111,10 @@ export default function PromisePage() {
                 {p.deadline && <span>{timeLeft(p.deadline)}.</span>} If {p.name || 'you'} {p.name ? 'misses' : 'miss'} it, the
                 money goes to <span className="font-semibold text-ink">{p.recipient === 'charity' ? 'charity' : p.recipient}</span>.
               </p>
+
+              <div className="mt-10 max-w-xl">
+                <ProvePanel promise={p} onChange={refresh} demoAvailable={demoAvailable} />
+              </div>
             </motion.div>
           ) : (
             <p className="text-ink-soft">Loading the promise…</p>

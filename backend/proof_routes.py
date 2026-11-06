@@ -169,8 +169,10 @@ def _decide(v: dict) -> tuple[str, bool]:
     return ("pass", True) if passed else ("fail", False)
 
 
+# Plain `def` on purpose: FastAPI runs it in a worker thread, so the slow AI call and
+# upload never block other requests.
 @router.post("/promises/{promise_id}/photo")
-async def submit_photo(promise_id: str, proof_id: str = Form(...), photo: UploadFile = File(...)):
+def submit_photo(promise_id: str, proof_id: str = Form(...), photo: UploadFile = File(...)):
     promise = _active_promise(promise_id)
     proof = db.get("proofs", proof_id)
     if not proof or proof["promise_id"] != promise_id:
@@ -183,7 +185,7 @@ async def submit_photo(promise_id: str, proof_id: str = Form(...), photo: Upload
     if expires <= _now():
         raise HTTPException(409, "Your secret word expired. Get a new one and take the photo within 10 minutes.")
 
-    data = await photo.read(MAX_PHOTO_BYTES + 1)
+    data = photo.file.read(MAX_PHOTO_BYTES + 1)
     if len(data) > MAX_PHOTO_BYTES:
         raise HTTPException(413, "That photo is too large. Try again.")
     mime = photo.content_type if photo.content_type in ("image/jpeg", "image/png", "image/webp") else "image/jpeg"
@@ -193,7 +195,12 @@ async def submit_photo(promise_id: str, proof_id: str = Form(...), photo: Upload
         raise HTTPException(422, "That file isn't a photo.")
 
     def finish(verdict: str, reason: str, counted: bool, confidence: float | None = None, path: str | None = None):
-        db.update("proofs", proof_id, {
+        # Re-check the 12-hour rule at the moment of counting, so two open proofs can't both count.
+        if counted and _recently_counted(promise_id) and not config.DEMO_MODE:
+            counted = False
+            verdict = "fail"
+            reason = f"You already have a counted proof in the last {MIN_HOURS_BETWEEN_COUNTED} hours."
+        written = db.update_if_null("proofs", proof_id, {
             "ended_at": _now().isoformat(),
             "photo_hash": photo_hash,
             "photo_path": path,
@@ -201,7 +208,9 @@ async def submit_photo(promise_id: str, proof_id: str = Form(...), photo: Upload
             "ai_reason": reason,
             "ai_confidence": confidence,
             "counted": counted,
-        })
+        }, null_column="ai_verdict")
+        if written is None:
+            raise HTTPException(409, "This proof was already judged.")
         view = views.promise_view(promise)
         return {"verdict": verdict, "reason": reason, "counted": counted, "promise": view}
 

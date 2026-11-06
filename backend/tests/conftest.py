@@ -31,6 +31,13 @@ class FakeDB:
         rows = [dict(r) for r in self.tables[table].values() if all(r.get(k) == v for k, v in filters.items())]
         return sorted(rows, key=lambda r: r.get(order_by) or "") if order_by else rows
 
+    def update_if_null(self, table, id, fields, null_column):
+        row = self.tables[table].get(id)
+        if not row or row.get(null_column) is not None:
+            return None
+        row.update(fields)
+        return dict(row)
+
     def update(self, table, id, fields):
         self.tables[table][id].update(fields)
         return dict(self.tables[table][id])
@@ -53,7 +60,7 @@ class FakePayPal:
 @pytest.fixture
 def fake_db(monkeypatch):
     fake = FakeDB()
-    for name in ("insert", "get", "where", "update"):
+    for name in ("insert", "get", "where", "update", "update_if_null"):
         monkeypatch.setattr(db, name, getattr(fake, name))
     return fake
 
