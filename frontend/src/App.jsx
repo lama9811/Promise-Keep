@@ -1,7 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { BrowserRouter, Link, Route, Routes, useLocation } from 'react-router'
+import { MotionConfig } from 'motion/react'
 import { PayPalScriptProvider } from '@paypal/react-paypal-js'
-import CreatePromise from './pages/CreatePromise'
+import Lenis from 'lenis'
+import Home from './pages/Home'
 import PromisePage from './pages/PromisePage'
+import NotFound from './pages/NotFound'
 
 const PAYPAL_OPTIONS = {
   clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID || 'test',
@@ -9,30 +13,74 @@ const PAYPAL_OPTIONS = {
   intent: 'capture',
 }
 
-// Tiny hash router: #/ and #/p/<promise id>
-function useRoute() {
-  const [hash, setHash] = useState(window.location.hash)
+let lenis = null
+
+function useSmoothScroll() {
   useEffect(() => {
-    const onChange = () => setHash(window.location.hash)
-    window.addEventListener('hashchange', onChange)
-    return () => window.removeEventListener('hashchange', onChange)
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    lenis = new Lenis({ autoRaf: true, lerp: 0.12 })
+    return () => {
+      lenis.destroy()
+      lenis = null
+    }
   }, [])
-  const m = hash.match(/^#\/p\/([\w-]+)/)
-  return m ? { page: 'promise', id: m[1] } : { page: 'home' }
+}
+
+function scrollToTarget(target, immediate) {
+  if (lenis) lenis.scrollTo(target, { immediate, offset: 0 })
+  else if (typeof target === 'number') window.scrollTo(0, target)
+  else document.querySelector(target)?.scrollIntoView()
+}
+
+// The browser's own scroll restoration fights the smooth scroller on reload.
+if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
+  window.history.scrollRestoration = 'manual'
+}
+
+// New page: jump to the top (or to #section). The smooth scroller keeps its
+// own position, so it has to be told too, or it drags the page back.
+function ScrollManager() {
+  const { pathname, hash } = useLocation()
+  useEffect(() => {
+    if (hash) {
+      requestAnimationFrame(() => scrollToTarget(hash, false))
+    } else {
+      scrollToTarget(0, true)
+    }
+  }, [pathname, hash])
+  return null
+}
+
+function Header() {
+  return (
+    <header className="absolute inset-x-0 top-0 z-20">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 md:px-10">
+        <Link to="/" className="font-display text-xl font-bold tracking-tight text-paper">
+          Promise Keeper
+        </Link>
+        <Link to="/#how" className="text-sm text-mist transition-colors hover:text-paper">
+          How it works
+        </Link>
+      </div>
+    </header>
+  )
 }
 
 export default function App() {
-  const route = useRoute()
+  useSmoothScroll()
   return (
     <PayPalScriptProvider options={PAYPAL_OPTIONS}>
-      <div className="min-h-screen bg-stone-50 text-stone-900">
-        <header className="max-w-md mx-auto px-5 pt-6 pb-2">
-          <a href="#/" className="text-lg font-bold tracking-tight">🤝 Promise Keeper</a>
-        </header>
-        <main className="max-w-md mx-auto px-5 pb-16">
-          {route.page === 'promise' ? <PromisePage id={route.id} /> : <CreatePromise />}
-        </main>
-      </div>
+      <MotionConfig reducedMotion="user">
+        <BrowserRouter>
+          <ScrollManager />
+          <Header />
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/p/:id" element={<PromisePage />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </MotionConfig>
     </PayPalScriptProvider>
   )
 }

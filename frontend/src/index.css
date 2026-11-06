@@ -1,1 +1,72 @@
 @import "tailwindcss";
+@import "lenis/dist/lenis.css";
+
+@theme {
+  --color-cobalt: #1e3bff;
+  --color-cobalt-deep: #142ad6;
+  --color-cobalt-night: #0b1a8f;
+  --color-paper: #f4f6ff;
+  --color-ink: #0a1240;
+  --color-ink-soft: #4a5384;
+  --color-mist: #d3daff;
+  --color-kept: #6ef0be;
+  --color-broke: #ff4d6d;
+  --color-broke-ink: #c0123a;
+
+  --font-display: "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Hanken Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+  html {
+    background: var(--color-cobalt);
+    color: var(--color-paper);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: var(--color-kept);
+    color: var(--color-ink);
+  }
+  :focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+}
+
+/* Inline "blank" inside the contract sentence */
+@utility blank {
+  display: inline-block;
+  field-sizing: content;
+  border-bottom: 2px solid color-mix(in oklab, var(--color-ink) 25%, transparent);
+  padding: 0 0.15em;
+  color: var(--color-cobalt);
+  font-weight: 600;
+  background: transparent;
+  transition: border-color 0.2s, background-color 0.2s;
+  &:hover {
+    background: color-mix(in oklab, var(--color-cobalt) 6%, transparent);
+  }
+  &:focus {
+    outline: none;
+    border-color: var(--color-cobalt);
+    background: color-mix(in oklab, var(--color-cobalt) 8%, transparent);
+  }
+}
+
+/* Quiet, grayscale map so the cobalt pin and radius are the only colour on it */
+.leaflet-tile-pane {
+  filter: grayscale(1) contrast(1.05) brightness(1.04);
+}

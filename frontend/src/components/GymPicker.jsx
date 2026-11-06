@@ -52,14 +52,19 @@ export default function GymPicker({ value, onChange }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium">Where is your gym?</span>
-        <button type="button" onClick={useMyLocation} className="text-sm text-blue-700 underline">
+      <div className="flex items-baseline justify-between gap-4">
+        <span className="text-sm font-medium">Your gym</span>
+        <button type="button" onClick={useMyLocation} className="text-sm text-cobalt underline underline-offset-4">
           {locating ? 'Finding you…' : "I'm at my gym now"}
         </button>
       </div>
-      <div className="h-56 rounded-xl overflow-hidden border border-stone-200">
-        <MapContainer center={value ? [value.lat, value.lng] : FALLBACK_CENTER} zoom={15} className="h-full w-full">
+      <div className="mt-1.5 h-60 overflow-hidden rounded-2xl border border-ink/15">
+        <MapContainer
+          center={value ? [value.lat, value.lng] : FALLBACK_CENTER}
+          zoom={15}
+          scrollWheelZoom={false}
+          className="h-full w-full"
+        >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -69,13 +74,13 @@ export default function GymPicker({ value, onChange }) {
           {value && (
             <>
               <Marker position={[value.lat, value.lng]} icon={icon} />
-              <Circle center={[value.lat, value.lng]} radius={RADIUS_M} pathOptions={{ color: '#1d4ed8' }} />
+              <Circle center={[value.lat, value.lng]} radius={RADIUS_M} pathOptions={{ color: '#1e3bff', weight: 2 }} />
             </>
           )}
         </MapContainer>
       </div>
-      <p className="text-xs text-stone-500 mt-1">
-        {value ? 'Check-ins only count inside the blue circle (150 m).' : 'Tap the map on your gym.'}
+      <p className="mt-2 text-sm text-ink-soft">
+        {value ? 'Check-ins only count inside the blue circle, about 150 m.' : 'Tap the map where your gym is.'}
       </p>
     </div>
   )

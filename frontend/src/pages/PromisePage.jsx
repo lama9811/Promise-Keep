@@ -1,82 +1,164 @@
 import { useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router'
+import { motion } from 'motion/react'
 import { api } from '../api'
-import { formatCents, TYPE_LABEL } from '../money'
+import { formatCents } from '../money'
+import CoinStage from '../three/CoinStage'
+import { setCoin } from '../three/coinStore'
+
+const EASE = [0.16, 1, 0.3, 1]
+const NOUN = { gym: ['gym visit', 'gym visits'], study: ['study session', 'study sessions'], run: ['run', 'runs'] }
 
 function timeLeft(deadline) {
   const ms = new Date(deadline) - new Date()
-  if (ms <= 0) return 'Deadline passed'
+  if (ms <= 0) return 'The deadline has passed'
   const h = Math.floor(ms / 3.6e6)
   const d = Math.floor(h / 24)
-  return d >= 1 ? `${d}d ${h % 24}h left` : `${h}h ${Math.floor((ms % 3.6e6) / 6e4)}m left`
+  if (d >= 1) return `${d} day${d === 1 ? '' : 's'}, ${h % 24} hour${h % 24 === 1 ? '' : 's'} left`
+  const m = Math.floor((ms % 3.6e6) / 6e4)
+  return `${h} hour${h === 1 ? '' : 's'}, ${m} min left`
 }
 
-const STATUS = {
-  draft: { label: 'Waiting for payment', color: 'bg-stone-200 text-stone-700' },
-  active: { label: 'Active', color: 'bg-blue-100 text-blue-800' },
-  won: { label: 'Kept! 🎉', color: 'bg-green-100 text-green-800' },
-  lost: { label: 'Broken', color: 'bg-red-100 text-red-800' },
-  settled: { label: 'Settled', color: 'bg-stone-800 text-white' },
+function statusLine(p) {
+  if (p.status === 'draft') return 'Payment not finished, so this promise is not locked in yet.'
+  if (p.status === 'active') return 'Locked in. PayPal is holding the stake.'
+  if (p.outcome === 'won' || p.status === 'won') return 'Promise kept. The stake goes back.'
+  if (p.outcome === 'lost' || p.status === 'lost') return 'Promise broken. The stake goes out.'
+  return 'Settled.'
 }
 
-export default function PromisePage({ id }) {
+function proofIcon(proof) {
+  if (proof.counted) return { mark: '✓', cls: 'bg-kept text-ink', label: 'Counted' }
+  if (proof.ai_verdict === 'unsure' && !proof.referee_decision) return { mark: '?', cls: 'bg-mist text-ink', label: 'Waiting for your friend' }
+  return { mark: '✕', cls: 'bg-broke text-white', label: 'Not counted' }
+}
+
+export default function PromisePage() {
+  const { id } = useParams()
   const [p, setP] = useState(null)
-  const [error, setError] = useState('')
+  const [missing, setMissing] = useState(false)
 
   useEffect(() => {
     let alive = true
     api(`/promises/${id}`)
-      .then((data) => alive && setP(data))
-      .catch(() => alive && setError('Promise not found.'))
-    return () => { alive = false }
+      .then((data) => {
+        if (!alive) return
+        setP(data)
+        const outcome = data.outcome || (data.status === 'won' || data.status === 'lost' ? data.status : null)
+        setCoin({
+          mode: data.status === 'draft' ? 'deal' : 'progress',
+          stakeCents: data.stake_cents,
+          done: data.done_count,
+          target: data.target_count,
+          outcome,
+        })
+      })
+      .catch(() => alive && setMissing(true))
+    return () => {
+      alive = false
+    }
   }, [id])
 
-  if (error) return <p className="mt-8 text-red-700">{error}</p>
-  if (!p) return <p className="mt-8 text-stone-500">Loading…</p>
+  if (missing) {
+    return (
+      <main className="grid min-h-svh place-items-center px-6 text-center">
+        <div>
+          <h1 className="font-display text-5xl font-extrabold tracking-tight">No promise here.</h1>
+          <p className="mt-3 text-mist">The link may be wrong or incomplete.</p>
+          <Link to="/" className="mt-8 inline-block rounded-full bg-paper px-6 py-3 font-semibold text-ink">
+            Make a promise
+          </Link>
+        </div>
+      </main>
+    )
+  }
 
-  const status = STATUS[p.status] || STATUS.draft
-  const pct = Math.min(100, Math.round((p.done_count / p.target_count) * 100))
+  const noun = p ? NOUN[p.type][p.target_count === 1 ? 0 : 1] : ''
 
   return (
-    <div className="mt-4 space-y-5">
-      <section className="rounded-2xl bg-white border border-stone-200 p-5 shadow-sm">
-        <div className="flex items-center justify-between">
-          <span className={`text-xs font-semibold rounded-full px-3 py-1 ${status.color}`}>{status.label}</span>
-          <span className="text-sm text-stone-500">{p.deadline && timeLeft(p.deadline)}</span>
-        </div>
-        <p className="mt-3 text-xl font-semibold">{p.summary || p.raw_text}</p>
-        <p className="text-sm text-stone-500">{TYPE_LABEL[p.type]}</p>
+    <main>
+      <section className="mx-auto grid max-w-7xl gap-6 px-6 pt-24 md:grid-cols-[1fr_1fr] md:gap-10 md:px-10 md:pt-0">
+        <div className="order-2 pb-20 md:order-1 md:flex md:min-h-svh md:flex-col md:justify-center md:py-32">
+          {p ? (
+            <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease: EASE }}>
+              <p className="text-mist">{statusLine(p)}</p>
+              <h1 className="mt-4 max-w-xl font-display text-[clamp(2rem,4.2vw,3.5rem)] font-extrabold leading-[0.98] tracking-[-0.03em]">
+                {p.summary || p.raw_text}
+              </h1>
 
-        <div className="mt-6 text-center">
-          <p className="text-5xl font-bold" data-testid="progress">{p.done_count} of {p.target_count}</p>
-          <div className="mt-3 h-3 rounded-full bg-stone-200 overflow-hidden">
-            <div className="h-full bg-green-600 transition-all" style={{ width: `${pct}%` }} />
-          </div>
-        </div>
+              <div className="mt-12 flex items-end gap-5">
+                <span data-testid="progress" className="font-display text-[clamp(5rem,12vw,9.5rem)] font-extrabold leading-[0.8] tracking-[-0.05em]">
+                  {p.done_count}
+                </span>
+                <span className="pb-2 font-display text-2xl font-semibold leading-tight text-mist">
+                  of {p.target_count}
+                  <br />
+                  {noun}
+                </span>
+              </div>
 
-        <p className="mt-5 text-sm text-stone-600">
-          <b>{formatCents(p.stake_cents)}</b> on the line. If {p.name || 'you'} miss{p.name ? 'es' : ''} it, it goes to{' '}
-          <b>{p.recipient === 'charity' ? 'charity' : p.recipient}</b>.
-        </p>
+              <p className="mt-10 max-w-md text-lg leading-relaxed text-mist">
+                <span className="text-paper">{formatCents(p.stake_cents)}</span> on the line.{' '}
+                {p.deadline && <span>{timeLeft(p.deadline)}.</span>} If {p.name || 'you'} {p.name ? 'misses' : 'miss'} it, the
+                money goes to <span className="text-paper">{p.recipient === 'charity' ? 'charity' : p.recipient}</span>.
+              </p>
+            </motion.div>
+          ) : (
+            <p className="text-mist">Loading the promise…</p>
+          )}
+        </div>
+        <div className="order-1 md:order-2">
+          <CoinStage className="h-[42svh] md:sticky md:top-0 md:h-svh" ringSegments={p?.target_count || 1} />
+        </div>
       </section>
 
-      {p.proofs.length > 0 && (
-        <section className="rounded-2xl bg-white border border-stone-200 p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-wide text-stone-500 mb-2">Proof so far</p>
-          <ul className="space-y-2">
-            {p.proofs.map((proof) => (
-              <li key={proof.id} className="text-sm">
-                {proof.counted ? '✅' : proof.ai_verdict === 'unsure' ? '⏳' : '❌'}{' '}
-                {new Date(proof.started_at).toLocaleString()} · {proof.ai_reason || proof.kind}
-              </li>
-            ))}
-          </ul>
+      {p && (
+        <section className="bg-paper text-ink">
+          <div className="mx-auto grid max-w-7xl gap-14 px-6 py-20 md:grid-cols-[1.4fr_1fr] md:px-10 md:py-28">
+            <div>
+              <h2 className="font-display text-3xl font-extrabold tracking-[-0.02em]">Proof so far</h2>
+              {p.proofs.length === 0 ? (
+                <p className="mt-4 max-w-md leading-relaxed text-ink-soft">
+                  Nothing yet. Every check-in shows up here with the AI's reason, whether it counts or not.
+                </p>
+              ) : (
+                <ol className="mt-8 space-y-5">
+                  {p.proofs.map((proof) => {
+                    const icon = proofIcon(proof)
+                    return (
+                      <li key={proof.id} className="flex gap-4">
+                        <span aria-label={icon.label} className={`grid size-9 shrink-0 place-items-center rounded-full font-bold ${icon.cls}`}>
+                          {icon.mark}
+                        </span>
+                        <div>
+                          <p className="font-medium">{proof.ai_reason || icon.label}</p>
+                          <p className="text-sm text-ink-soft">
+                            {new Date(proof.started_at).toLocaleString(undefined, { weekday: 'long', hour: 'numeric', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ol>
+              )}
+            </div>
+            <div>
+              <h2 className="font-display text-3xl font-extrabold tracking-[-0.02em]">Money trail</h2>
+              <p className="mt-4 leading-relaxed text-ink-soft">Every PayPal transaction for this promise, so you can check it moved.</p>
+              <dl className="mt-6 space-y-4 text-sm">
+                <div>
+                  <dt className="text-ink-soft">Stake order</dt>
+                  <dd className="mt-0.5 break-all font-medium">{p.paypal_order_id || 'Not created yet'}</dd>
+                </div>
+                <div>
+                  <dt className="text-ink-soft">Stake captured</dt>
+                  <dd className="mt-0.5 break-all font-medium">{p.paypal_capture_id || 'Not paid yet'}</dd>
+                </div>
+              </dl>
+            </div>
+          </div>
         </section>
       )}
-
-      <section className="text-xs text-stone-500 space-y-1">
-        <p>PayPal order: <span className="font-mono">{p.paypal_order_id || '—'}</span></p>
-        <p>PayPal capture: <span className="font-mono">{p.paypal_capture_id || '—'}</span></p>
-      </section>
-    </div>
+    </main>
   )
 }
