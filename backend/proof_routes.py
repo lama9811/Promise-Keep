@@ -195,11 +195,7 @@ def submit_photo(promise_id: str, proof_id: str = Form(...), photo: UploadFile =
         raise HTTPException(422, "That file isn't a photo.")
 
     def finish(verdict: str, reason: str, counted: bool, confidence: float | None = None, path: str | None = None):
-        # Re-check the 12-hour rule at the moment of counting, so two open proofs can't both count.
-        if counted and _recently_counted(promise_id) and not config.DEMO_MODE:
-            counted = False
-            verdict = "fail"
-            reason = f"You already have a counted proof in the last {MIN_HOURS_BETWEEN_COUNTED} hours."
+        # 1. Write the verdict exactly once (atomic: only if no verdict yet), not counted yet.
         written = db.update_if_null("proofs", proof_id, {
             "ended_at": _now().isoformat(),
             "photo_hash": photo_hash,
@@ -207,10 +203,21 @@ def submit_photo(promise_id: str, proof_id: str = Form(...), photo: UploadFile =
             "ai_verdict": verdict,
             "ai_reason": reason,
             "ai_confidence": confidence,
-            "counted": counted,
+            "counted": False,
         }, null_column="ai_verdict")
         if written is None:
             raise HTTPException(409, "This proof was already judged.")
+        # 2. Count it only if the promise's 12-hour slot can be claimed (atomic compare-and-set).
+        if counted:
+            now = _now()
+            window = timedelta(0) if config.DEMO_MODE else timedelta(hours=MIN_HOURS_BETWEEN_COUNTED)
+            if db.claim_count(promise_id, now.isoformat(), (now - window).isoformat()):
+                db.update("proofs", proof_id, {"counted": True})
+            else:
+                counted = False
+                verdict = "fail"
+                reason = f"You already have a counted proof in the last {MIN_HOURS_BETWEEN_COUNTED} hours."
+                db.update("proofs", proof_id, {"ai_verdict": verdict, "ai_reason": reason})
         view = views.promise_view(promise)
         return {"verdict": verdict, "reason": reason, "counted": counted, "promise": view}
 

@@ -9,7 +9,7 @@ import { dealFromParse } from '../deal'
 
 const EASE = [0.16, 1, 0.3, 1]
 const HEADLINE = ['Your word,', 'now with', 'money on it.']
-const EXAMPLES = ['gym 3x this week or $20 to Alex', 'study 4 nights before Friday, $15 to charity']
+const EXAMPLES = ['gym 3x this week or $20 to Alex', 'practice guitar 4 times, or $15 to charity']
 
 function Headline() {
   return (

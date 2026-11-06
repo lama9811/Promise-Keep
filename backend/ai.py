@@ -131,8 +131,11 @@ and the photo only needs to make the activity believable, not perfect."""
 
 
 def _clean(text: str, limit: int) -> str:
-    """One line, printable, capped: user text can't smuggle in new prompt sections."""
-    return " ".join("".join(ch if ch.isprintable() else " " for ch in (text or "")).split())[:limit]
+    """One line, printable, no angle brackets, capped: user text can't close the
+    <user_promise> block or smuggle in new prompt sections."""
+    text = "".join(ch if ch.isprintable() else " " for ch in (text or ""))
+    text = text.replace("<", "‹").replace(">", "›")
+    return " ".join(text.split())[:limit]
 
 
 def check_photo(image: bytes, mime: str, live_word: str, activity: str, proof: str, hint: str) -> dict:

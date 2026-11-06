@@ -38,6 +38,14 @@ class FakeDB:
         row.update(fields)
         return dict(row)
 
+    def claim_count(self, promise_id, now_iso, cutoff_iso):
+        row = self.tables["promises"][promise_id]
+        last = row.get("last_counted_at")
+        if last is not None and last >= cutoff_iso:
+            return False
+        row["last_counted_at"] = now_iso
+        return True
+
     def update(self, table, id, fields):
         self.tables[table][id].update(fields)
         return dict(self.tables[table][id])
@@ -60,7 +68,7 @@ class FakePayPal:
 @pytest.fixture
 def fake_db(monkeypatch):
     fake = FakeDB()
-    for name in ("insert", "get", "where", "update", "update_if_null"):
+    for name in ("insert", "get", "where", "update", "update_if_null", "claim_count"):
         monkeypatch.setattr(db, name, getattr(fake, name))
     return fake
 

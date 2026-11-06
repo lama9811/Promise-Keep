@@ -5,7 +5,7 @@ import { PayPalButtons } from '@paypal/react-paypal-js'
 import { api } from '../api'
 import { formatCents, dollarsToCents } from '../money'
 import { kickCoin, setCoin } from '../three/coinStore'
-import { EMAIL_RE, VERB, friendlyDeadline } from '../deal'
+import { EMAIL_RE, PROOF_LABEL, friendlyDeadline } from '../deal'
 
 const GymPicker = lazy(() => import('./GymPicker'))
 
@@ -35,7 +35,8 @@ export default function DealSheet({ text, deal, setDeal, onEdit }) {
     problems.push('a friend other than you')
   if (stakeCents < 100 || stakeCents > 10000) problems.push('a stake from $1 to $100')
   if (!deal.deadline_local || new Date(deal.deadline_local) <= new Date()) problems.push('a deadline in the future')
-  if (deal.type === 'gym' && !gym) problems.push('your gym on the map')
+  if (deal.activity.trim().length < 2) problems.push('what you promise to do')
+  if (deal.proof === 'gym' && !gym) problems.push('your gym on the map')
   if (!me.name.trim()) problems.push('your name')
   if (!EMAIL_RE.test(me.email)) problems.push('your PayPal email')
 
@@ -55,14 +56,16 @@ export default function DealSheet({ text, deal, setDeal, onEdit }) {
         name: me.name.trim(),
         paypal_email: me.email.trim(),
         raw_text: text,
-        type: deal.type,
+        activity: deal.activity.trim(),
+        proof: deal.proof,
+        proof_hint: deal.proof_hint || '',
         target_count: Number(deal.target_count),
         deadline: new Date(deal.deadline_local).toISOString(),
         stake_cents: stakeCents,
         recipient: deal.to_charity ? 'charity' : deal.friend_email.trim(),
         summary: deal.summary,
-        gym_lat: deal.type === 'gym' ? gym?.lat : null,
-        gym_lng: deal.type === 'gym' ? gym?.lng : null,
+        gym_lat: deal.proof === 'gym' ? gym?.lat : null,
+        gym_lng: deal.proof === 'gym' ? gym?.lng : null,
       }),
     })
     promiseIdRef.current = res.promise_id
@@ -103,11 +106,14 @@ export default function DealSheet({ text, deal, setDeal, onEdit }) {
       {/* The contract, as one sentence with editable blanks */}
       <p className="mt-6 font-display text-[1.65rem] font-semibold leading-[1.45] tracking-[-0.01em] md:text-[1.9rem]">
         I'll{' '}
-        <select aria-label="What" value={deal.type} onChange={set('type')} className={`${blank} cursor-pointer appearance-none`}>
-          {Object.entries(VERB).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
-          ))}
-        </select>{' '}
+        <input
+          aria-label="What you promise to do"
+          value={deal.activity}
+          onChange={set('activity')}
+          maxLength={80}
+          placeholder="do something"
+          className={`${blank} max-w-full`}
+        />{' '}
         <input
           aria-label="How many times"
           type="number"
@@ -163,7 +169,24 @@ export default function DealSheet({ text, deal, setDeal, onEdit }) {
           </label>
         )}
 
-        {deal.type === 'gym' && (
+        <div>
+          <p className="text-sm font-medium">How I'll prove it</p>
+          <select
+            aria-label="How you'll prove it"
+            value={deal.proof}
+            onChange={set('proof')}
+            className={`${field} cursor-pointer`}
+          >
+            {Object.entries(PROOF_LABEL).map(([k, v]) => (
+              <option key={k} value={k}>{v}</option>
+            ))}
+          </select>
+          {deal.proof === 'photo' && deal.proof_hint && (
+            <p className="mt-2 text-sm text-ink-soft">Your photo should show: {deal.proof_hint}</p>
+          )}
+        </div>
+
+        {deal.proof === 'gym' && (
           <Suspense fallback={<div className="h-72 animate-pulse rounded-2xl bg-ink/5" />}>
             <GymPicker value={gym} onChange={setGym} />
           </Suspense>

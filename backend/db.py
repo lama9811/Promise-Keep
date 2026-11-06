@@ -57,6 +57,20 @@ def update_if_null(table: str, id: str, fields: dict, null_column: str) -> dict 
     return rows[0] if rows else None
 
 
+def claim_count(promise_id: str, now_iso: str, cutoff_iso: str) -> bool:
+    """Compare-and-set in one statement: mark the promise as counted now, but only if
+    its last counted proof is older than cutoff. Two parallel requests can't both win."""
+    rows = (
+        _table("promises")
+        .update({"last_counted_at": now_iso})
+        .eq("id", promise_id)
+        .or_(f"last_counted_at.is.null,last_counted_at.lt.{cutoff_iso}")
+        .execute()
+        .data
+    )
+    return bool(rows)
+
+
 def upload_photo(path: str, data: bytes, content_type: str = "image/jpeg") -> str:
     """Save a photo to the private proofs bucket. Returns the storage path.
 

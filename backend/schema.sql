@@ -41,6 +41,7 @@ create table if not exists promises (
   outcome text check (outcome in ('won', 'lost')),  -- kept after status becomes settled
   paypal_order_id text,
   paypal_capture_id text,
+  last_counted_at timestamptz,          -- claimed atomically: one counted proof per 12 hours
   created_at timestamptz not null default now(),
   unique (pot_id, user_id)               -- one promise per person per pot
 );

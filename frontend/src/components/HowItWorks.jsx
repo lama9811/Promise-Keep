@@ -124,7 +124,7 @@ const STEPS = [
   },
   {
     title: 'Prove it',
-    body: 'At the gym, check in on location and hold up a secret word in a live photo. For studying, the AI quizzes you on your own notes.',
+    body: 'Promise anything. Prove it with a live photo holding up a secret word, while you do it. The gym adds a location check, studying gets a quiz on your own notes, and your friend confirms what a photo can\'t show.',
     tint: 'bg-kept-soft',
     Art: ProveIllustration,
   },

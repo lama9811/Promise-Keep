@@ -1,6 +1,12 @@
 // Turns the API's parsed deal into form state for the contract sheet.
 export const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
-export const VERB = { gym: 'go to the gym', study: 'study', run: 'go for a run' }
+// How each kind of promise gets proven, in the user's words.
+export const PROOF_LABEL = {
+  gym: 'a gym check-in and a live photo',
+  photo: 'a live photo of me doing it',
+  quiz: 'a quiz on my own notes',
+  friend: 'my friend confirming it',
+}
 
 // "2026-11-08T23:59:00-05:00" -> "2026-11-08T23:59" in the phone's local time
 function toLocalInput(iso) {
