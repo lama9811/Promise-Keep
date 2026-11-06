@@ -1,24 +1,38 @@
 import { useEffect, useState } from 'react'
-import { api } from './api'
+import { PayPalScriptProvider } from '@paypal/react-paypal-js'
+import CreatePromise from './pages/CreatePromise'
+import PromisePage from './pages/PromisePage'
+
+const PAYPAL_OPTIONS = {
+  clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID || 'test',
+  currency: 'USD',
+  intent: 'capture',
+}
+
+// Tiny hash router: #/ and #/p/<promise id>
+function useRoute() {
+  const [hash, setHash] = useState(window.location.hash)
+  useEffect(() => {
+    const onChange = () => setHash(window.location.hash)
+    window.addEventListener('hashchange', onChange)
+    return () => window.removeEventListener('hashchange', onChange)
+  }, [])
+  const m = hash.match(/^#\/p\/([\w-]+)/)
+  return m ? { page: 'promise', id: m[1] } : { page: 'home' }
+}
 
 export default function App() {
-  const [health, setHealth] = useState('checking...')
-
-  useEffect(() => {
-    api('/health')
-      .then((data) => setHealth(data.status))
-      .catch((err) => setHealth(`error: ${err.message}`))
-  }, [])
-
+  const route = useRoute()
   return (
-    <main className="min-h-screen bg-stone-50 text-stone-900 flex flex-col items-center justify-center p-6">
-      <h1 className="text-3xl font-bold">Promise Keeper</h1>
-      <p className="mt-2 text-stone-600 text-center">
-        Bet on yourself. AI is the referee, PayPal holds the money.
-      </p>
-      <p className="mt-6 text-sm">
-        Backend: <span data-testid="health" className="font-mono">{health}</span>
-      </p>
-    </main>
+    <PayPalScriptProvider options={PAYPAL_OPTIONS}>
+      <div className="min-h-screen bg-stone-50 text-stone-900">
+        <header className="max-w-md mx-auto px-5 pt-6 pb-2">
+          <a href="#/" className="text-lg font-bold tracking-tight">🤝 Promise Keeper</a>
+        </header>
+        <main className="max-w-md mx-auto px-5 pb-16">
+          {route.page === 'promise' ? <PromisePage id={route.id} /> : <CreatePromise />}
+        </main>
+      </div>
+    </PayPalScriptProvider>
   )
 }

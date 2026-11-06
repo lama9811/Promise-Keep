@@ -16,7 +16,7 @@ def test_cents_to_str():
 
 
 @pytest.fixture
-def fake_paypal(monkeypatch):
+def fake_http(monkeypatch):
     """Record every POST and answer like PayPal would."""
     calls = []
 
@@ -41,32 +41,32 @@ def fake_paypal(monkeypatch):
     return calls
 
 
-def test_order_capture_refund_payout_flow(fake_paypal):
+def test_order_capture_refund_payout_flow(fake_http):
     order = paypal.create_order(2000, "p1")
     assert order == {"id": "ORDER1", "approve_url": "https://pp/approve"}
     assert paypal.capture_order("ORDER1") == {"id": "CAP1", "status": "COMPLETED"}
     assert paypal.refund_capture("CAP1", "refund-p1") == {"id": "REF1", "status": "COMPLETED"}
     assert paypal.send_payouts("pot-9", [("a@x.com", 667, "hi"), ("b@x.com", 666, "hi")]) == {"id": "BATCH1", "status": "PENDING"}
 
-    urls = [u for u, _ in fake_paypal]
+    urls = [u for u, _ in fake_http]
     # Token fetched once and cached.
     assert sum(u.endswith("/oauth2/token") for u in urls) == 1
 
-    _, order_kw = fake_paypal[1]
+    _, order_kw = fake_http[1]
     unit = order_kw["json"]["purchase_units"][0]
     assert unit["amount"] == {"currency_code": "USD", "value": "20.00"}
     assert unit["custom_id"] == "p1"
 
-    _, refund_kw = next(c for c in fake_paypal if c[0].endswith("/refund"))
+    _, refund_kw = next(c for c in fake_http if c[0].endswith("/refund"))
     assert refund_kw["headers"]["PayPal-Request-Id"] == "refund-p1"
 
-    _, payout_kw = fake_paypal[-1]
+    _, payout_kw = fake_http[-1]
     body = payout_kw["json"]
     assert body["sender_batch_header"]["sender_batch_id"] == "pot-9"
     assert [i["amount"]["value"] for i in body["items"]] == ["6.67", "6.66"]
 
 
-def test_error_raises_paypal_error(fake_paypal, monkeypatch):
+def test_error_raises_paypal_error(fake_http, monkeypatch):
     def deny(url, **kwargs):
         return httpx.Response(401, text="invalid_client", request=httpx.Request("POST", url))
 

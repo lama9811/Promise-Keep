@@ -1,5 +1,6 @@
 """Small Supabase helpers. The server uses the service_role key, so it bypasses RLS;
 the browser never talks to Supabase directly."""
+import uuid
 from functools import lru_cache
 
 from supabase import Client, create_client
@@ -28,6 +29,10 @@ def insert(table: str, row: dict) -> dict:
 
 
 def get(table: str, id: str) -> dict | None:
+    try:
+        uuid.UUID(str(id))
+    except ValueError:
+        return None  # not a real ID, so it can't exist
     rows = _table(table).select("*").eq("id", id).limit(1).execute().data
     return rows[0] if rows else None
 
