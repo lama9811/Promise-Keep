@@ -94,4 +94,4 @@ create index if not exists pots_unsettled_idx on pots(deadline) where settled_at
 -- signed URLs that the server creates after checking who is asking.
 insert into storage.buckets (id, name, public)
 values ('proofs', 'proofs', false)
-on conflict (id) do nothing;
+on conflict (id) do update set public = false;
