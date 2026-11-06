@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+httpx
+python-dotenv
+supabase
+google-genai
+pillow
+imagehash
+python-multipart
+pytest
