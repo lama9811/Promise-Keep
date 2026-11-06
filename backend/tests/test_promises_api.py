@@ -11,7 +11,8 @@ def promise_body(**over):
         "name": "Sam",
         "paypal_email": "Sam@Example.com",
         "raw_text": "gym 3x this week or $20 to Alex",
-        "type": "gym",
+        "activity": "go to the gym",
+        "proof": "gym",
         "target_count": 3,
         "deadline": FUTURE,
         "stake_cents": 2000,
@@ -28,13 +29,13 @@ def promise_body(**over):
 
 def test_parse_returns_cents_and_card(client, monkeypatch):
     monkeypatch.setattr(ai, "parse_promise", lambda text, now, tz: {
-        "type": "gym", "target_count": 3, "deadline": FUTURE, "stake_usd": 20.0,
+        "activity": "go to the gym", "proof": "gym", "proof_hint": "x", "target_count": 3, "deadline": FUTURE, "stake_usd": 20.0,
         "recipient": "Alex", "summary": "Gym 3x", "needs_clarification": None,
     })
     r = client.post("/promises/parse", json={"text": "gym 3x this week or $20 to Alex", "tz": "America/New_York"})
     assert r.status_code == 200
     d = r.json()
-    assert (d["type"], d["target_count"], d["stake_cents"], d["recipient"]) == ("gym", 3, 2000, "Alex")
+    assert (d["activity"], d["proof"], d["target_count"], d["stake_cents"], d["recipient"]) == ("go to the gym", "gym", 3, 2000, "Alex")
     assert d["needs_clarification"] is None
 
 
@@ -47,11 +48,12 @@ def test_parse_ai_down_returns_503(client, monkeypatch):
 
 def test_normalize_flags_bad_values():
     now = datetime.now(timezone.utc)
-    d = deals.normalize_deal({"type": "swim", "target_count": 0, "stake_usd": 500,
+    d = deals.normalize_deal({"activity": "", "proof": "telepathy", "target_count": 0, "stake_usd": 500,
                               "deadline": "2000-01-01T00:00:00+00:00"}, "UTC", now)
     assert d["needs_clarification"]
     assert d["stake_cents"] == deals.MAX_STAKE_CENTS
     assert d["target_count"] == 1
+    assert d["proof"] == "photo"  # unknown proof falls back to a live photo
     assert deals.usd_to_cents(19.99) == 1999
     assert deals.usd_to_cents(0.1 + 0.2) == 30
 
@@ -106,7 +108,8 @@ def test_create_validation(client):
     assert client.post("/promises", json=promise_body(gym_lat=None)).status_code == 422
     past = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
     assert client.post("/promises", json=promise_body(deadline=past)).status_code == 422
-    assert client.post("/promises", json=promise_body(type="study", gym_lat=None, gym_lng=None,
+    assert client.post("/promises", json=promise_body(proof="telepathy")).status_code == 422
+    assert client.post("/promises", json=promise_body(activity="practice guitar", proof="photo", gym_lat=None, gym_lng=None,
                                                      recipient="charity")).status_code == 200
 
 
@@ -140,3 +143,18 @@ def test_ai_error_details_not_leaked(client, monkeypatch):
     monkeypatch.setattr(ai, "parse_promise", boom)
     r = client.post("/promises/parse", json={"text": "gym 3x"})
     assert "secret internal detail" not in r.text
+
+
+def test_any_promise_can_be_made(client, fake_db):
+    c = client.post("/promises", json=promise_body(
+        activity="practice guitar", proof="photo", proof_hint="You holding your guitar", gym_lat=None, gym_lng=None,
+    )).json()
+    p = client.get(f"/promises/{c['promise_id']}").json()
+    assert (p["activity"], p["proof"], p["proof_hint"], p["has_gym"]) == ("practice guitar", "photo", "You holding your guitar", False)
+
+
+def test_gym_hint_is_fixed_and_coords_dropped_for_non_gym(client, fake_db):
+    c = client.post("/promises", json=promise_body(proof_hint="anything")).json()
+    assert fake_db.get("promises", c["promise_id"])["proof_hint"] == deals.GYM_HINT
+    c = client.post("/promises", json=promise_body(activity="read", proof="friend")).json()
+    assert fake_db.get("promises", c["promise_id"])["gym_lat"] is None

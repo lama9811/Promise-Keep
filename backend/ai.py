@@ -1,7 +1,7 @@
 """Gemini calls. Every call uses JSON mode with a schema, so replies always parse.
 
-If the main model is overloaded (503) or rate-limited (429), we retry once and
-then fall back to GEMINI_FALLBACK_MODEL.
+If the main model is overloaded (503) or rate-limited (429), we back off and
+try the GEMINI_FALLBACK_MODELS in order.
 """
 import json
 import time
@@ -37,7 +37,13 @@ def generate_json(prompt: str, schema: type[BaseModel], images: list[tuple[bytes
         temperature=0.2,
     )
     last_err: Exception | None = None
-    for model in (config.GEMINI_MODEL, config.GEMINI_MODEL, config.GEMINI_FALLBACK_MODEL):
+    # Busy or rate-limited models are common on the free tier: back off, then fall back.
+    fallbacks = config.GEMINI_FALLBACK_MODELS
+    attempts = [(config.GEMINI_MODEL, 0)] + [(m, 0) for m in fallbacks]
+    attempts += [(config.GEMINI_MODEL, 2)] + [(m, 2 + i) for i, m in enumerate(fallbacks)]
+    for model, wait in attempts:
+        if wait:
+            time.sleep(wait)
         try:
             resp = _client().models.generate_content(model=model, contents=parts, config=cfg)
             return schema.model_validate(json.loads(resp.text)).model_dump()
@@ -45,7 +51,6 @@ def generate_json(prompt: str, schema: type[BaseModel], images: list[tuple[bytes
             last_err = e
             retryable = getattr(e, "code", None) in (429, 500, 503) or "JSON mode is not enabled" in str(e)
             if retryable:
-                time.sleep(1)
                 continue
             raise AIError(f"Gemini error: {e}") from e
         except (json.JSONDecodeError, ValueError) as e:
@@ -57,7 +62,9 @@ def generate_json(prompt: str, schema: type[BaseModel], images: list[tuple[bytes
 # ---------- Prompt 1: read a promise (F1) ----------
 
 class Deal(BaseModel):
-    type: str = Field(description="one of gym, study, run")
+    activity: str = Field(description="short verb phrase that fits after \"I'll\", e.g. \"practice guitar\"")
+    proof: str = Field(description="one of gym, quiz, photo, friend")
+    proof_hint: str = Field(description="one sentence: what a proof photo should show")
     target_count: int
     deadline: str = Field(description="ISO 8601 date-time with timezone offset")
     stake_usd: float
@@ -69,7 +76,18 @@ class Deal(BaseModel):
 PARSE_PROMPT = """You turn a person's goal into a clear deal for a habit app.
 Today is {today}, timezone {tz}.
 User wrote: "{text}"
-Return JSON: type (one of gym, study, run), target_count (integer),
+People can promise anything. Return JSON:
+activity (a short verb phrase that reads naturally after "I'll", lowercase, e.g. "go to the gym",
+  "practice guitar for 30 minutes", "read 20 pages", "cook dinner at home"),
+proof (how it will be proven, one of:
+  gym = going to a gym or fitness class,
+  quiz = studying or learning from notes,
+  photo = anything else a photo of them doing it can show (running, music, cooking, cleaning, reading...),
+  friend = things a photo cannot show, like not doing something ("no social media", "no smoking")),
+proof_hint (one friendly sentence on what their proof photo should show, e.g. "You holding your guitar".
+  Proof photos are always taken live with the app's camera, while doing it, holding up a secret word.
+  Never suggest screenshots, receipts or photos of screens),
+target_count (integer),
 deadline (ISO date-time with the timezone offset; "this week" means this coming Sunday 23:59),
 stake_usd (number, 1 to 100), recipient (name or email, or "charity"),
 summary (one short sentence).

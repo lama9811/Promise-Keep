@@ -27,7 +27,9 @@ create table if not exists promises (
   pot_id uuid not null references pots(id) on delete cascade,
   user_id uuid not null references users(id),
   raw_text text not null,
-  type text not null check (type in ('gym', 'study', 'run')),
+  activity text not null,               -- what they promised, e.g. 'practice guitar'
+  proof text not null check (proof in ('gym', 'quiz', 'photo', 'friend')),  -- how it is proven
+  proof_hint text,                       -- what a proof photo should show
   target_count integer not null check (target_count > 0),
   stake_cents integer not null check (stake_cents between 100 and 10000),
   recipient text not null,               -- friend email or 'charity'
@@ -46,7 +48,7 @@ create table if not exists promises (
 create table if not exists proofs (
   id uuid primary key default gen_random_uuid(),
   promise_id uuid not null references promises(id) on delete cascade,
-  kind text not null check (kind in ('checkin', 'photo', 'quiz', 'strava')),
+  kind text not null check (kind in ('checkin', 'photo', 'quiz', 'friend', 'strava')),
   started_at timestamptz not null default now(),
   ended_at timestamptz,
   lat double precision,

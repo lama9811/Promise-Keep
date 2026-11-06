@@ -2,9 +2,16 @@
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
-TYPES = {"gym", "study", "run"}
+# How a promise gets proven:
+#   gym    - location check + 30 minutes on site + live-word photo
+#   quiz   - AI quiz on a photo of your own notes (studying)
+#   photo  - live-word photo of you doing the activity (anything you can photograph)
+#   friend - your friend confirms it (things a photo can't show, like "no social media")
+PROOFS = {"gym", "quiz", "photo", "friend"}
 MIN_STAKE_CENTS = 100
 MAX_STAKE_CENTS = 10_000
+MAX_ACTIVITY_LEN = 80
+GYM_HINT = "You at your gym, holding up the secret word."
 
 
 def usd_to_cents(usd: float) -> int:
@@ -16,10 +23,13 @@ def normalize_deal(raw: dict, tz: str, now: datetime | None = None) -> dict:
     now = now or datetime.now(timezone.utc)
     problems: list[str] = []
 
-    kind = str(raw.get("type", "")).lower().strip()
-    if kind not in TYPES:
-        problems.append("Is this a gym, study or run goal?")
-        kind = "gym"
+    activity = " ".join(str(raw.get("activity") or "").split())[:MAX_ACTIVITY_LEN]
+    if not activity:
+        problems.append("What do you want to do?")
+
+    proof = str(raw.get("proof", "")).lower().strip()
+    if proof not in PROOFS:
+        proof = "photo"
 
     count = int(raw.get("target_count") or 0)
     if not 1 <= count <= 30:
@@ -42,7 +52,9 @@ def normalize_deal(raw: dict, tz: str, now: datetime | None = None) -> dict:
 
     clarification = raw.get("needs_clarification") or (problems[0] if problems else None)
     return {
-        "type": kind,
+        "activity": activity,
+        "proof": proof,
+        "proof_hint": GYM_HINT if proof == "gym" else str(raw.get("proof_hint") or "").strip(),
         "target_count": count,
         "deadline": deadline.isoformat() if deadline else None,
         "stake_cents": stake_cents,

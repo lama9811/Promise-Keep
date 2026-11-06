@@ -66,7 +66,9 @@ class PromiseIn(BaseModel):
     name: str = Field(min_length=1, max_length=60)
     paypal_email: str
     raw_text: str = Field(min_length=3, max_length=500)
-    type: str
+    activity: str = Field(min_length=2, max_length=deals.MAX_ACTIVITY_LEN)
+    proof: str
+    proof_hint: str = Field(default="", max_length=200)
     target_count: int = Field(ge=1, le=30)
     deadline: datetime
     stake_cents: int = Field(ge=deals.MIN_STAKE_CENTS, le=deals.MAX_STAKE_CENTS)
@@ -75,11 +77,11 @@ class PromiseIn(BaseModel):
     gym_lat: float | None = None
     gym_lng: float | None = None
 
-    @field_validator("type")
+    @field_validator("proof")
     @classmethod
-    def _type(cls, v):
-        if v not in deals.TYPES:
-            raise ValueError("type must be gym, study or run")
+    def _proof(cls, v):
+        if v not in deals.PROOFS:
+            raise ValueError("proof must be gym, quiz, photo or friend")
         return v
 
     @field_validator("paypal_email")
@@ -113,7 +115,7 @@ def create_promise(body: PromiseIn):
         raise HTTPException(422, "deadline needs a timezone")
     if body.deadline <= datetime.now(timezone.utc):
         raise HTTPException(422, "deadline is in the past")
-    if body.type == "gym" and (body.gym_lat is None or body.gym_lng is None):
+    if body.proof == "gym" and (body.gym_lat is None or body.gym_lng is None):
         raise HTTPException(422, "pick your gym on the map first")
     if body.recipient == body.paypal_email:
         raise HTTPException(422, "the money can't go to yourself")
@@ -129,13 +131,15 @@ def create_promise(body: PromiseIn):
         "pot_id": pot["id"],
         "user_id": user["id"],
         "raw_text": body.raw_text,
-        "type": body.type,
+        "activity": body.activity,
+        "proof": body.proof,
+        "proof_hint": deals.GYM_HINT if body.proof == "gym" else body.proof_hint,
         "target_count": body.target_count,
         "stake_cents": body.stake_cents,
         "recipient": body.recipient,
         "summary": body.summary,
-        "gym_lat": body.gym_lat,
-        "gym_lng": body.gym_lng,
+        "gym_lat": body.gym_lat if body.proof == "gym" else None,
+        "gym_lng": body.gym_lng if body.proof == "gym" else None,
         "status": "draft",
     })
     try:
@@ -203,7 +207,9 @@ def _promise_view(promise: dict) -> dict:
         "name": user["name"] if user else "",
         "raw_text": promise["raw_text"],
         "summary": promise["summary"],
-        "type": promise["type"],
+        "activity": promise["activity"],
+        "proof": promise["proof"],
+        "proof_hint": promise.get("proof_hint"),
         "target_count": promise["target_count"],
         "done_count": done,
         "stake_cents": promise["stake_cents"],
