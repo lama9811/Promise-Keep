@@ -6,7 +6,7 @@ const CoinScene = lazy(() => import('./CoinScene'))
 function StillCoin() {
   return (
     <div className="grid h-full w-full place-items-center" aria-hidden="true">
-      <div className="aspect-square w-[52%] rounded-full bg-[radial-gradient(circle_at_35%_30%,#ffffff,#c9cff0_45%,#7d88c9_75%,#3a49b8)] shadow-[0_40px_80px_-30px_#07116b]" />
+      <div className="aspect-square w-[52%] rounded-full bg-[radial-gradient(circle_at_35%_30%,#ffffff,#c9cff0_45%,#7d88c9_75%,#3a49b8)] shadow-[0_40px_80px_-30px_rgba(10,18,64,0.45)]" />
     </div>
   )
 }

@@ -55,10 +55,10 @@ function Header() {
   return (
     <header className="absolute inset-x-0 top-0 z-20">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 md:px-10">
-        <Link to="/" className="font-display text-xl font-bold tracking-tight text-paper">
+        <Link to="/" className="font-display text-xl font-bold tracking-tight text-ink">
           Promise Keeper
         </Link>
-        <Link to="/#how" className="text-sm text-mist transition-colors hover:text-paper">
+        <Link to="/#how" className="text-sm text-ink-soft transition-colors hover:text-cobalt">
           How it works
         </Link>
       </div>

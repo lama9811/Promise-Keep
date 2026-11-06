@@ -87,7 +87,7 @@ export default function DealSheet({ text, deal, setDeal, onEdit }) {
       animate={{ opacity: 1, y: 0, rotateX: 0, transition: { duration: 0.9, ease: EASE } }}
       exit={{ opacity: 0, y: 20, transition: { duration: 0.3 } }}
       style={{ transformPerspective: 1200 }}
-      className="mt-10 max-w-xl rounded-[28px] bg-paper p-6 text-ink shadow-[0_50px_100px_-40px_#07116b] md:p-9"
+      className="mt-10 max-w-xl rounded-[28px] border border-line bg-surface p-6 text-ink shadow-[0_50px_100px_-45px_rgba(30,59,255,0.35)] md:p-9"
     >
       <div className="flex items-baseline justify-between gap-4">
         <p className="text-sm text-ink-soft">Here's your deal. Tap anything blue to change it.</p>
@@ -97,7 +97,7 @@ export default function DealSheet({ text, deal, setDeal, onEdit }) {
       </div>
 
       {deal.needs_clarification && (
-        <p className="mt-5 rounded-xl bg-cobalt/8 px-4 py-3 text-sm text-ink">{deal.needs_clarification}</p>
+        <p className="mt-5 rounded-xl bg-sun-soft px-4 py-3 text-sm text-ink">{deal.needs_clarification}</p>
       )}
 
       {/* The contract, as one sentence with editable blanks */}
@@ -207,7 +207,7 @@ export default function DealSheet({ text, deal, setDeal, onEdit }) {
             onCancel={() => setError('Payment cancelled. Your promise is not locked in yet.')}
           />
         </div>
-        <p role="status" className="mt-3 min-h-5 text-sm text-broke-ink">
+        <p role="status" className="mt-3 min-h-5 text-sm text-broke">
           {error}
         </p>
       </div>

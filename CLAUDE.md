@@ -49,13 +49,18 @@ Plan and schedule: APPROACH.md. Full spec: ~/Desktop/Promise-Keeper-PRD-and-Buil
   (F6, F7), referee + demo mode + deploy (F8, F9).
 
 ## Design system (keep new screens consistent)
-- Cobalt `#1e3bff` background, paper `#f4f6ff`, ink `#0a1240`. Mint `#6ef0be` only for
-  "kept", rose `#ff4d6d` only for "broken" (`broke-ink #c0123a` for error text on paper).
-  Tokens live in `frontend/src/index.css` (`@theme`).
+- Light and bright. Canvas `#f6f7fb`, surface white, line `#e3e6f0`, ink `#0a1240`,
+  ink-soft `#565e85`. Cobalt `#1e3bff` is the accent (buttons, editable blanks, links).
+  Kept `#0e9f72` / soft `#d8f6ea`, broke `#e5364f` / soft `#ffe1e6`, sun `#ffd84a` /
+  soft `#fff3b8`. Tokens live in `frontend/src/index.css` (`@theme`).
+- The user rejected the all-cobalt dark version on Nov 6. Don't go back to dark backgrounds.
 - Fonts: Bricolage Grotesque (display), Hanken Grotesk (body), from @fontsource.
-- The 3D chrome coin is the one bold element. Use it for big moments (flip, ring clamp,
-  ring segment lighting up) rather than adding new effects elsewhere.
-- Avoid: all-caps labels, arrows on buttons, grids of identical cards, scroll fade-ins on every section.
+- Hero: the 3D chrome coin, with a soft sky and sun glow behind it. The 3D environment stays
+  dark inside (`#26305e`) so the chrome has contrast on a light page.
+- "How it works" = `components/HowItWorks.jsx`: sticky stacked motion cards (sky / mint /
+  sun tints) that shrink as the next one stacks over them, tilt toward the cursor, and
+  carry small live illustrations with depth (translateZ). Reuse this card style for new sections.
+- Avoid: all-caps labels, arrows on buttons, scroll fade-ins on every section.
 - Copy: plain, active, sentence case. Errors say what happened and how to fix it.
 - Always check with screenshots at 1440×900 and 390×844.
 

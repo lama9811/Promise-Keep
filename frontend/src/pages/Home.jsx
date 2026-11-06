@@ -4,6 +4,7 @@ import { api } from '../api'
 import CoinStage from '../three/CoinStage'
 import { kickCoin, setCoin } from '../three/coinStore'
 import DealSheet from '../components/DealSheet'
+import HowItWorks from '../components/HowItWorks'
 import { dealFromParse } from '../deal'
 
 const EASE = [0.16, 1, 0.3, 1]
@@ -12,7 +13,7 @@ const EXAMPLES = ['gym 3x this week or $20 to Alex', 'study 4 nights before Frid
 
 function Headline() {
   return (
-    <h1 className="font-display text-[clamp(2.75rem,5.6vw,5.25rem)] font-extrabold leading-[0.92] tracking-[-0.035em] text-paper">
+    <h1 className="font-display text-[clamp(2.75rem,5.6vw,5.25rem)] font-extrabold leading-[0.92] tracking-[-0.035em] text-ink">
       {HEADLINE.map((line, i) => (
         <span key={line} className="block overflow-hidden pb-[0.06em]">
           <motion.span
@@ -40,7 +41,7 @@ function Composer({ text, setText, onSubmit, parsing, error }) {
       exit={{ opacity: 0, y: -12, transition: { duration: 0.35, ease: EASE } }}
       className="mt-8 max-w-xl"
     >
-      <label htmlFor="goal" className="block text-lg text-mist">
+      <label htmlFor="goal" className="block text-lg text-ink-soft">
         What do you promise?
       </label>
       <textarea
@@ -60,9 +61,9 @@ function Composer({ text, setText, onSubmit, parsing, error }) {
           }
         }}
         placeholder={EXAMPLES[0]}
-        className="mt-3 w-full resize-none [field-sizing:content] border-b-2 border-paper/30 bg-transparent pb-3 font-display text-[clamp(1.2rem,2.4vw,1.9rem)] font-medium leading-tight text-paper placeholder:text-paper/35 focus:border-paper focus:outline-none"
+        className="mt-3 w-full resize-none [field-sizing:content] border-b-2 border-ink/15 bg-transparent pb-3 font-display text-[clamp(1.2rem,2.4vw,1.9rem)] font-medium leading-tight text-ink placeholder:text-ink/30 transition-colors focus:border-cobalt focus:outline-none"
       />
-      <p className="mt-3 text-sm text-mist">
+      <p className="mt-3 text-sm text-ink-soft">
         Try{' '}
         {EXAMPLES.map((ex, i) => (
           <span key={ex}>
@@ -73,7 +74,7 @@ function Composer({ text, setText, onSubmit, parsing, error }) {
                 kickCoin(2)
                 inputRef.current?.focus()
               }}
-              className="underline decoration-paper/30 underline-offset-4 transition-colors hover:text-paper hover:decoration-paper"
+              className="underline decoration-ink/20 underline-offset-4 transition-colors hover:text-cobalt hover:decoration-cobalt"
             >
               {ex}
             </button>
@@ -86,60 +87,14 @@ function Composer({ text, setText, onSubmit, parsing, error }) {
         disabled={parsing || text.trim().length < 3}
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.97 }}
-        className="mt-7 rounded-full bg-paper px-8 py-4 font-display text-lg font-bold text-ink shadow-[0_18px_40px_-18px_#07116b] transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-7 rounded-full bg-cobalt px-8 py-4 font-display text-lg font-bold text-white shadow-[0_18px_40px_-14px_rgba(30,59,255,0.65)] transition-colors disabled:cursor-not-allowed disabled:bg-ink/10 disabled:text-ink/40 disabled:shadow-none"
       >
         {parsing ? 'Reading your promise…' : 'Make it a deal'}
       </motion.button>
-      <p role="status" className="mt-4 min-h-6 text-paper">
+      <p role="status" className="mt-4 min-h-6 text-broke">
         {error}
       </p>
     </motion.form>
-  )
-}
-
-const STEPS = [
-  {
-    title: 'Lock it in',
-    body: 'Type your goal in plain words. The AI turns it into a clear deal, and PayPal holds your stake.',
-  },
-  {
-    title: 'Prove it',
-    body: 'At the gym, check in on location and hold up a secret word in a live photo. For studying, the AI quizzes you on your own notes.',
-  },
-  {
-    title: 'Settle up',
-    body: 'Keep your promise and PayPal refunds you. Break it and your stake goes to your friend or a charity, automatically.',
-  },
-]
-
-function HowItWorks() {
-  return (
-    <section id="how" className="relative bg-cobalt-night">
-      <div className="mx-auto max-w-7xl px-6 py-28 md:px-10 md:py-36">
-        <h2 className="max-w-3xl font-display text-[clamp(2.25rem,5vw,4rem)] font-extrabold leading-[0.95] tracking-[-0.03em]">
-          No honor system. A referee that checks.
-        </h2>
-        <ol className="mt-16 grid gap-12 md:grid-cols-3 md:gap-10">
-          {STEPS.map((step, i) => (
-            <li key={step.title} className="border-t border-paper/20 pt-6">
-              <span className="font-display text-6xl font-extrabold text-paper/25" aria-hidden="true">
-                {i + 1}
-              </span>
-              <h3 className="mt-4 font-display text-2xl font-bold">{step.title}</h3>
-              <p className="mt-3 max-w-sm leading-relaxed text-mist">{step.body}</p>
-            </li>
-          ))}
-        </ol>
-        <p className="mt-20 max-w-2xl leading-relaxed text-mist">
-          What it can't stop: fake-GPS apps, or sitting in the gym for 30 minutes without lifting anything. That's why
-          your friend gets the final say on any proof the AI isn't sure about.
-        </p>
-      </div>
-      <footer className="mx-auto max-w-7xl px-6 pb-10 text-sm text-paper/50 md:px-10">
-        Built with PayPal and Gemini for the PayPal + AI hackathon. Payments run in the PayPal sandbox, so no real money
-        moves.
-      </footer>
-    </section>
   )
 }
 
@@ -192,7 +147,7 @@ export default function Home() {
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: { duration: 1, delay: 0.55 } }}
-            className="mt-6 max-w-md text-lg leading-relaxed text-mist"
+            className="mt-6 max-w-md text-lg leading-relaxed text-ink-soft"
           >
             Bet on your own goal. AI checks your proof. PayPal gives the money back when you keep it, and pays your friend
             when you don't.
@@ -206,7 +161,14 @@ export default function Home() {
           </AnimatePresence>
         </div>
         <div className="order-1 md:order-2">
-          <CoinStage className="h-[42svh] md:sticky md:top-0 md:h-svh" />
+          <div className="relative h-[42svh] md:sticky md:top-0 md:h-svh">
+            {/* Daylight behind the coin: a soft sky and sun glow */}
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+              <div className="absolute left-[12%] top-[18%] size-[62%] rounded-full bg-cobalt-soft blur-3xl" />
+              <div className="absolute bottom-[20%] right-[10%] size-[40%] rounded-full bg-sun-soft blur-3xl" />
+            </div>
+            <CoinStage className="absolute inset-0" />
+          </div>
         </div>
       </section>
       <HowItWorks />

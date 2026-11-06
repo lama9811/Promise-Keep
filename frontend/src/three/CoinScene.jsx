@@ -61,16 +61,18 @@ export default function CoinScene({ ringSegments = 1 }) {
 
       {/* Studio reflections built locally, so the chrome needs no downloads. */}
       <Environment resolution={256} frames={1}>
-        <color attach="background" args={['#0b1a8f']} />
+        {/* A deep room with bright strips: chrome needs dark reflections to read as metal */}
+        <color attach="background" args={['#26305e']} />
         <Lightformer form="rect" intensity={4} position={[0, 4, 3]} scale={[10, 1.4, 1]} />
         <Lightformer form="rect" intensity={2.5} position={[-5, 0, 2]} rotation-y={Math.PI / 2} scale={[8, 2, 1]} />
         <Lightformer form="rect" intensity={2.5} position={[5, -1, 2]} rotation-y={-Math.PI / 2} scale={[8, 0.8, 1]} />
-        <Lightformer form="rect" color="#6f86ff" intensity={3} position={[0, -4, 2]} scale={[10, 2, 1]} />
+        <Lightformer form="rect" color="#1e3bff" intensity={2.2} position={[0, -4, 2]} scale={[10, 2, 1]} />
+        <Lightformer form="rect" color="#ffd84a" intensity={1.6} position={[4, 3, -2]} scale={[4, 2, 1]} />
         <Lightformer form="ring" color="#ffffff" intensity={1.5} position={[0, 0, 6]} scale={3} />
       </Environment>
 
       <Coin pointer={pointer} reducedMotion={reducedMotion} ringSegments={ringSegments} />
-      <ContactShadows position={[0, -2.4, 0]} opacity={0.45} blur={2.8} scale={7} far={4} color="#07116b" />
+      <ContactShadows position={[0, -2.4, 0]} opacity={0.32} blur={3} scale={7} far={4} color="#1a2466" />
     </Canvas>
   )
 }

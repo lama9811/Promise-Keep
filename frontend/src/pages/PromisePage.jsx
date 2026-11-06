@@ -28,8 +28,8 @@ function statusLine(p) {
 }
 
 function proofIcon(proof) {
-  if (proof.counted) return { mark: '✓', cls: 'bg-kept text-ink', label: 'Counted' }
-  if (proof.ai_verdict === 'unsure' && !proof.referee_decision) return { mark: '?', cls: 'bg-mist text-ink', label: 'Waiting for your friend' }
+  if (proof.counted) return { mark: '✓', cls: 'bg-kept text-white', label: 'Counted' }
+  if (proof.ai_verdict === 'unsure' && !proof.referee_decision) return { mark: '?', cls: 'bg-sun-soft text-ink', label: 'Waiting for your friend' }
   return { mark: '✕', cls: 'bg-broke text-white', label: 'Not counted' }
 }
 
@@ -64,8 +64,8 @@ export default function PromisePage() {
       <main className="grid min-h-svh place-items-center px-6 text-center">
         <div>
           <h1 className="font-display text-5xl font-extrabold tracking-tight">No promise here.</h1>
-          <p className="mt-3 text-mist">The link may be wrong or incomplete.</p>
-          <Link to="/" className="mt-8 inline-block rounded-full bg-paper px-6 py-3 font-semibold text-ink">
+          <p className="mt-3 text-ink-soft">The link may be wrong or incomplete.</p>
+          <Link to="/" className="mt-8 inline-block rounded-full bg-cobalt px-6 py-3 font-semibold text-white">
             Make a promise
           </Link>
         </div>
@@ -81,7 +81,7 @@ export default function PromisePage() {
         <div className="order-2 pb-20 md:order-1 md:flex md:min-h-svh md:flex-col md:justify-center md:py-32">
           {p ? (
             <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease: EASE }}>
-              <p className="text-mist">{statusLine(p)}</p>
+              <p className="text-ink-soft">{statusLine(p)}</p>
               <h1 className="mt-4 max-w-xl font-display text-[clamp(2rem,4.2vw,3.5rem)] font-extrabold leading-[0.98] tracking-[-0.03em]">
                 {p.summary || p.raw_text}
               </h1>
@@ -90,30 +90,36 @@ export default function PromisePage() {
                 <span data-testid="progress" className="font-display text-[clamp(5rem,12vw,9.5rem)] font-extrabold leading-[0.8] tracking-[-0.05em]">
                   {p.done_count}
                 </span>
-                <span className="pb-2 font-display text-2xl font-semibold leading-tight text-mist">
+                <span className="pb-2 font-display text-2xl font-semibold leading-tight text-ink-soft">
                   of {p.target_count}
                   <br />
                   {noun}
                 </span>
               </div>
 
-              <p className="mt-10 max-w-md text-lg leading-relaxed text-mist">
-                <span className="text-paper">{formatCents(p.stake_cents)}</span> on the line.{' '}
+              <p className="mt-10 max-w-md text-lg leading-relaxed text-ink-soft">
+                <span className="font-semibold text-ink">{formatCents(p.stake_cents)}</span> on the line.{' '}
                 {p.deadline && <span>{timeLeft(p.deadline)}.</span>} If {p.name || 'you'} {p.name ? 'misses' : 'miss'} it, the
-                money goes to <span className="text-paper">{p.recipient === 'charity' ? 'charity' : p.recipient}</span>.
+                money goes to <span className="font-semibold text-ink">{p.recipient === 'charity' ? 'charity' : p.recipient}</span>.
               </p>
             </motion.div>
           ) : (
-            <p className="text-mist">Loading the promise…</p>
+            <p className="text-ink-soft">Loading the promise…</p>
           )}
         </div>
         <div className="order-1 md:order-2">
-          <CoinStage className="h-[42svh] md:sticky md:top-0 md:h-svh" ringSegments={p?.target_count || 1} />
+          <div className="relative h-[42svh] md:sticky md:top-0 md:h-svh">
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+              <div className="absolute left-[12%] top-[18%] size-[62%] rounded-full bg-cobalt-soft blur-3xl" />
+              <div className="absolute bottom-[20%] right-[10%] size-[40%] rounded-full bg-kept-soft blur-3xl" />
+            </div>
+            <CoinStage className="absolute inset-0" ringSegments={p?.target_count || 1} />
+          </div>
         </div>
       </section>
 
       {p && (
-        <section className="bg-paper text-ink">
+        <section className="border-t border-line bg-surface text-ink">
           <div className="mx-auto grid max-w-7xl gap-14 px-6 py-20 md:grid-cols-[1.4fr_1fr] md:px-10 md:py-28">
             <div>
               <h2 className="font-display text-3xl font-extrabold tracking-[-0.02em]">Proof so far</h2>

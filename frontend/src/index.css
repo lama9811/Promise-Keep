@@ -2,16 +2,20 @@
 @import "lenis/dist/lenis.css";
 
 @theme {
-  --color-cobalt: #1e3bff;
-  --color-cobalt-deep: #142ad6;
-  --color-cobalt-night: #0b1a8f;
-  --color-paper: #f4f6ff;
+  /* Light, bright and cool. Cobalt is an accent now, not the room. */
+  --color-canvas: #f6f7fb;
+  --color-surface: #ffffff;
+  --color-line: #e3e6f0;
   --color-ink: #0a1240;
-  --color-ink-soft: #4a5384;
-  --color-mist: #d3daff;
-  --color-kept: #6ef0be;
-  --color-broke: #ff4d6d;
-  --color-broke-ink: #c0123a;
+  --color-ink-soft: #565e85;
+  --color-cobalt: #1e3bff;
+  --color-cobalt-soft: #e4e9ff;
+  --color-kept: #0e9f72;
+  --color-kept-soft: #d8f6ea;
+  --color-broke: #e5364f;
+  --color-broke-soft: #ffe1e6;
+  --color-sun: #ffd84a;
+  --color-sun-soft: #fff3b8;
 
   --font-display: "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Hanken Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
@@ -21,14 +25,14 @@
 
 @layer base {
   html {
-    background: var(--color-cobalt);
-    color: var(--color-paper);
+    background: var(--color-canvas);
+    color: var(--color-ink);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
   ::selection {
-    background: var(--color-kept);
+    background: var(--color-sun);
     color: var(--color-ink);
   }
   :focus-visible {
