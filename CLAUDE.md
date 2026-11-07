@@ -1,7 +1,8 @@
 # Promise Keeper
 
-Users bet real (sandbox) money on their own goals. An AI (Gemini) checks the proof:
-gym check-in with a live-word photo, or a quiz on their own study notes. At the
+Users bet real (sandbox) money on their own goals, about anything they choose. An AI
+(Gemini) checks the proof: a gym check-in plus a live-word photo, a live-word photo of
+the activity, a quiz on their own study notes, or a friend's confirmation. At the
 deadline, PayPal refunds people who kept the promise and pays out the losers'
 stakes to a friend, the winners or charity. Built for the PayPal + AI Devpost
 hackathon, due Thu Nov 12, 2026, 12:00 PM PST (we aim to submit by 9:00 AM PST).
@@ -32,12 +33,14 @@ Plan and schedule: APPROACH.md. Full spec: ~/Desktop/Promise-Keeper-PRD-and-Buil
 ## Layout
 - `backend/main.py`: FastAPI routes (promises). `proof_routes.py`: check-in, live word, photo referee.
   `views.py`: what the browser may see. `checks.py`: haversine, phash duplicates, EXIF date. `words.py`: 200 live words.
-  Previously in main: `paypal.py`: httpx calls (token, order, capture,
+  `paypal.py`: httpx calls (token, order, capture,
   refund, payouts). `ai.py`: Gemini JSON-mode calls. `deals.py`: validates AI output
   in code. `settle_math.py`: pure pot-split math. `db.py`: Supabase helpers.
   `schema.sql`: paste into Supabase SQL Editor.
 - `frontend/src/pages/`: `Home` (hero + composer + deal sheet), `PromisePage` (`/p/:id`), `NotFound`.
-- `frontend/src/components/`: `DealSheet` (contract sentence + PayPal button), `GymPicker` (Leaflet, lazy-loaded).
+- `frontend/src/components/`: `DealSheet` (contract sentence + proof choice + PayPal button),
+  `GymPicker` (Leaflet, lazy-loaded, gym proofs only), `ProvePanel` (the step-by-step "Prove it"
+  card on the promise page), `LiveCamera` (in-app camera only, no gallery), `HowItWorks` (motion cards).
 - `frontend/src/three/`: the 3D coin. `coinStore.js` is shared state the coin reads every
   frame (modes `idle` / `deal` / `locked` / `progress`); call `setCoin` / `kickCoin`
   instead of passing props.
@@ -49,6 +52,7 @@ Plan and schedule: APPROACH.md. Full spec: ~/Desktop/Promise-Keeper-PRD-and-Buil
   (live-word photo of doing it), `quiz` (Step 6), `friend` (F8).
 - Done: Steps 1, 2 (PayPal sandbox smoke test passed), 4 (F1, F2), 5 backend + screens
   (check-in, live word, photo referee), settle split math, light redesign.
+- Backend tests: 45 passing.
 - Waiting: `schema.sql` not yet run in Supabase, so nothing has been tested against the real DB yet.
 - Next: quiz (F5), settle + group pots (F6, F7), friend referee (F8), demo mode + deploy (F9).
 - Rules added beyond the PRD: the live word is issued at "I'm done" (not at check-in), because a
