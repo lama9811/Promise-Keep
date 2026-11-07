@@ -1,4 +1,6 @@
 // All calls go to the FastAPI backend. The backend holds every secret.
+import { accessToken } from './auth'
+
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8010'
 
 export class ApiError extends Error {
@@ -21,16 +23,21 @@ async function handle(res) {
   throw new ApiError(res.status, detail)
 }
 
+async function authHeader() {
+  const token = await accessToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 export async function api(path, options = {}) {
   const res = await fetch(`${API_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     ...options,
+    headers: { 'Content-Type': 'application/json', ...(await authHeader()), ...(options.headers || {}) },
   })
   return handle(res)
 }
 
 export async function apiForm(path, formData) {
-  const res = await fetch(`${API_URL}${path}`, { method: 'POST', body: formData })
+  const res = await fetch(`${API_URL}${path}`, { method: 'POST', body: formData, headers: await authHeader() })
   return handle(res)
 }
 

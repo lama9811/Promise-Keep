@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { api, apiForm, getPosition } from '../api'
 import { kickCoin, setCoin } from '../three/coinStore'
 import LiveCamera from './LiveCamera'
+import FitnessProof from './FitnessProof'
 
 const EASE = [0.16, 1, 0.3, 1]
 
@@ -67,7 +68,7 @@ function Result({ result, onAgain }) {
           <p className="mt-1 leading-relaxed text-ink-soft">{result.reason}</p>
         </div>
       </div>
-      {result.verdict === 'fail' && (
+      {result.verdict === 'fail' && onAgain && (
         <button onClick={onAgain} className="mt-4 text-sm font-semibold text-cobalt underline underline-offset-4">
           Try again with a new word
         </button>
@@ -82,7 +83,9 @@ export default function ProvePanel({ promise, onChange, demoAvailable }) {
   const [result, setResult] = useState(null)
   const [demo, setDemo] = useState(false)
   const open = promise.open_proof
-  const isGym = promise.proof === 'gym'
+  const isGym = promise.proof === 'gym' && promise.has_gym  // check-in only works with a pinned gym
+  const fitness = ['gym', 'steps', 'run', 'workout'].includes(promise.proof)
+  const fitnessResult = (r) => setResult({ ...r, fitness: true })
   const checkedIn = open?.kind === 'checkin'
   const word = open?.word
   const now = useNow(Boolean(open))
@@ -207,6 +210,16 @@ export default function ProvePanel({ promise, onChange, demoAvailable }) {
         </div>
       )
     }
+  } else if (promise.proof === 'steps' || promise.proof === 'run' || promise.proof === 'gym') {
+    body = (
+      <p className="leading-relaxed text-ink-soft">
+        {promise.proof === 'steps'
+          ? 'Each day you reach your step goal, send it here. One a day counts.'
+          : promise.proof === 'run'
+            ? 'Every run that reaches your distance counts, one per day.'
+            : 'Every gym session counts, one per day.'}
+      </p>
+    )
   } else {
     steps = ['Get a word', 'Photo']
     step = word ? 1 : 0
@@ -214,7 +227,7 @@ export default function ProvePanel({ promise, onChange, demoAvailable }) {
       body = (
         <div className="space-y-4">
           <p className="leading-relaxed text-ink-soft">
-            When you're doing it, tap below for a secret word. Then take a live photo holding it up.
+            Mid-workout? Tap below for a secret word, then take a live photo holding it up.
             {promise.proof_hint && <span className="mt-2 block text-ink">Show: {promise.proof_hint}</span>}
           </p>
           <PrimaryButton onClick={getWord} disabled={busy}>
@@ -280,7 +293,19 @@ export default function ProvePanel({ promise, onChange, demoAvailable }) {
           </motion.div>
         </AnimatePresence>
       </div>
-      {result && <div className="mt-6"><Result result={result} onAgain={isGym ? imHere : getWord} /></div>}
+      {fitness && promise.status === 'active' && !word && !(isGym && checkedIn) && (
+        <div className="mt-6">
+          <p className="mb-3 text-sm font-semibold text-ink-soft">
+            {steps ? 'Or prove it another way' : 'Ways to prove it'}
+          </p>
+          <FitnessProof promise={promise} onChange={onChange} onResult={fitnessResult} setError={setError} />
+        </div>
+      )}
+      {result && (
+        <div className="mt-6">
+          <Result result={result} onAgain={result.fitness ? null : isGym ? imHere : getWord} />
+        </div>
+      )}
       <p role="status" className="mt-4 min-h-5 text-sm text-broke">
         {error}
       </p>

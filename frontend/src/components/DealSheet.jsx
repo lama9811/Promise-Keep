@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router'
 import { motion } from 'motion/react'
 import { PayPalButtons } from '@paypal/react-paypal-js'
 import { api } from '../api'
+import { displayName, useAuth } from '../auth'
 import { formatCents, dollarsToCents } from '../money'
 import { kickCoin, setCoin } from '../three/coinStore'
-import { EMAIL_RE, PROOF_LABEL, friendlyDeadline } from '../deal'
+import { EMAIL_RE, GOAL_DEFAULT, GOAL_UNIT, PROOF_LABEL, friendlyDeadline } from '../deal'
 
 const GymPicker = lazy(() => import('./GymPicker'))
 
@@ -15,7 +16,9 @@ const field =
 
 export default function DealSheet({ text, deal, setDeal, onEdit }) {
   const navigate = useNavigate()
-  const [me, setMe] = useState({ name: '', email: '' })
+  const { session } = useAuth()
+  const myEmail = session?.user?.email || ''
+  const [me, setMe] = useState({ name: displayName(session) })
   const [gym, setGym] = useState(null)
   const [error, setError] = useState('')
   const [locking, setLocking] = useState(false)
@@ -31,14 +34,13 @@ export default function DealSheet({ text, deal, setDeal, onEdit }) {
   const friendLabel = deal.friend_name || 'my friend'
   const problems = []
   if (!deal.to_charity && !EMAIL_RE.test(deal.friend_email)) problems.push(`${deal.friend_name || 'your friend'}'s PayPal email`)
-  if (!deal.to_charity && me.email.trim() && deal.friend_email.trim().toLowerCase() === me.email.trim().toLowerCase())
+  if (!deal.to_charity && deal.friend_email.trim().toLowerCase() === myEmail.toLowerCase())
     problems.push('a friend other than you')
   if (stakeCents < 100 || stakeCents > 10000) problems.push('a stake from $1 to $100')
   if (!deal.deadline_local || new Date(deal.deadline_local) <= new Date()) problems.push('a deadline in the future')
   if (deal.activity.trim().length < 2) problems.push('what you promise to do')
-  if (deal.proof === 'gym' && !gym) problems.push('your gym on the map')
+  if (GOAL_UNIT[deal.proof] && !(Number(deal.goal_value) > 0)) problems.push(`your goal in ${GOAL_UNIT[deal.proof]}`)
   if (!me.name.trim()) problems.push('your name')
-  if (!EMAIL_RE.test(me.email)) problems.push('your PayPal email')
 
   // PayPal keeps the first createOrder it was given, so read the newest
   // values through a ref instead of the closure.
@@ -54,11 +56,11 @@ export default function DealSheet({ text, deal, setDeal, onEdit }) {
       method: 'POST',
       body: JSON.stringify({
         name: me.name.trim(),
-        paypal_email: me.email.trim(),
         raw_text: text,
         activity: deal.activity.trim(),
         proof: deal.proof,
         proof_hint: deal.proof_hint || '',
+        goal_value: GOAL_UNIT[deal.proof] ? Number(deal.goal_value) : null,
         target_count: Number(deal.target_count),
         deadline: new Date(deal.deadline_local).toISOString(),
         stake_cents: stakeCents,
@@ -90,7 +92,7 @@ export default function DealSheet({ text, deal, setDeal, onEdit }) {
       animate={{ opacity: 1, y: 0, rotateX: 0, transition: { duration: 0.9, ease: EASE } }}
       exit={{ opacity: 0, y: 20, transition: { duration: 0.3 } }}
       style={{ transformPerspective: 1200 }}
-      className="mt-10 max-w-xl rounded-[28px] border border-line bg-surface p-6 text-ink shadow-[0_50px_100px_-45px_rgba(30,59,255,0.35)] md:p-9"
+      className="rounded-2xl border border-line bg-surface p-5 text-ink shadow-[0_1px_2px_rgba(10,18,64,0.04)] md:p-7"
     >
       <div className="flex items-baseline justify-between gap-4">
         <p className="text-sm text-ink-soft">Here's your deal. Tap anything blue to change it.</p>
@@ -174,40 +176,53 @@ export default function DealSheet({ text, deal, setDeal, onEdit }) {
           <select
             aria-label="How you'll prove it"
             value={deal.proof}
-            onChange={set('proof')}
+            onChange={(e) => setDeal({ ...deal, proof: e.target.value, goal_value: String(GOAL_DEFAULT[e.target.value] ?? '') })}
             className={`${field} cursor-pointer`}
           >
             {Object.entries(PROOF_LABEL).map(([k, v]) => (
               <option key={k} value={k}>{v}</option>
             ))}
           </select>
-          {deal.proof === 'photo' && deal.proof_hint && (
-            <p className="mt-2 text-sm text-ink-soft">Your photo should show: {deal.proof_hint}</p>
-          )}
         </div>
 
-        {deal.proof === 'gym' && (
-          <Suspense fallback={<div className="h-72 animate-pulse rounded-2xl bg-ink/5" />}>
-            <GymPicker value={gym} onChange={setGym} />
-          </Suspense>
+        {GOAL_UNIT[deal.proof] && (
+          <label className="block text-sm font-medium">
+            Each time counts when I reach
+            <div className="relative mt-1.5">
+              <input
+                type="number"
+                min="0"
+                step={deal.proof === 'run' ? '0.1' : '1'}
+                value={deal.goal_value}
+                onChange={set('goal_value')}
+                className={`${field} mt-0 pr-24`}
+              />
+              <span className="pointer-events-none absolute inset-y-0 right-4 grid place-items-center text-ink-soft">
+                {GOAL_UNIT[deal.proof]}
+              </span>
+            </div>
+            <span className="mt-1.5 block font-normal text-ink-soft">One counts per day, so 7 times means 7 different days.</span>
+          </label>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm font-medium">
-            Your name
-            <input value={me.name} onChange={(e) => setMe({ ...me, name: e.target.value })} className={field} autoComplete="given-name" />
-          </label>
-          <label className="block text-sm font-medium">
-            Your PayPal email
-            <input
-              type="email"
-              value={me.email}
-              onChange={(e) => setMe({ ...me, email: e.target.value })}
-              className={field}
-              autoComplete="email"
-            />
-          </label>
-        </div>
+        {deal.proof === 'gym' && (
+          <div>
+            <p className="text-sm font-medium">Pin your gym (optional)</p>
+            <p className="mt-0.5 text-sm text-ink-soft">
+              Pin it to use the in-app check-in. You can also prove gym visits with WHOOP or your gym app’s check-in screen.
+            </p>
+            <div className="mt-3">
+              <Suspense fallback={<div className="h-72 animate-pulse rounded-2xl bg-ink/5" />}>
+                <GymPicker value={gym} onChange={setGym} />
+              </Suspense>
+            </div>
+          </div>
+        )}
+
+        <label className="block text-sm font-medium">
+          Your name, as your friend knows you
+          <input value={me.name} onChange={(e) => setMe({ ...me, name: e.target.value })} className={field} autoComplete="given-name" />
+        </label>
       </div>
 
       <div className="mt-9 border-t border-ink/10 pt-7">
@@ -218,7 +233,9 @@ export default function DealSheet({ text, deal, setDeal, onEdit }) {
             {locking ? 'Locking it in…' : `Lock in ${formatCents(stakeCents)} with PayPal`}
           </p>
         )}
-        <p className="mt-1 text-sm text-ink-soft">You get it all back if you keep your promise.</p>
+        <p className="mt-1 text-sm text-ink-soft">
+          You get it all back, to the PayPal account you pay with, if you keep your promise.
+        </p>
         <div className={`mt-5 transition-opacity ${problems.length ? 'pointer-events-none opacity-30' : ''}`}>
           <PayPalButtons
             style={{ layout: 'vertical', shape: 'pill', label: 'pay', height: 52 }}

@@ -3,10 +3,12 @@
 
 create extension if not exists pgcrypto;
 
+-- One row per signed-in account (Supabase Auth: Google or email link).
 create table if not exists users (
   id uuid primary key default gen_random_uuid(),
+  auth_id uuid not null unique references auth.users(id) on delete cascade,
+  email text not null,                   -- sign-in email
   name text not null,
-  paypal_email text not null,           -- sandbox email for refunds/payouts
   created_at timestamptz not null default now()
 );
 
@@ -41,6 +43,7 @@ create table if not exists promises (
   outcome text check (outcome in ('won', 'lost')),  -- kept after status becomes settled
   paypal_order_id text,
   paypal_capture_id text,
+  payer_email text,                     -- PayPal account that actually paid; refunds and winnings go here
   last_counted_at timestamptz,          -- claimed atomically: one counted proof per 12 hours
   created_at timestamptz not null default now(),
   unique (pot_id, user_id)               -- one promise per person per pot
@@ -89,9 +92,21 @@ create table if not exists payouts (
 );
 
 create index if not exists promises_pot_idx on promises(pot_id);
+create index if not exists promises_user_idx on promises(user_id);
 create index if not exists proofs_promise_idx on proofs(promise_id);
 create index if not exists payouts_pot_idx on payouts(pot_id);
 create index if not exists pots_unsettled_idx on pots(deadline) where settled_at is null;
+
+-- The browser only talks to the API, never to these tables directly. Turning RLS on
+-- with no policies blocks the public anon key; the server's secret key bypasses it.
+alter table users enable row level security;
+alter table pots enable row level security;
+alter table promises enable row level security;
+alter table proofs enable row level security;
+alter table quizzes enable row level security;
+alter table payouts enable row level security;
+
+-- Promise agent: see migrations/002_agent.sql (also run that file).
 
 -- Photo storage bucket. Private: photos are only shown through short-lived
 -- signed URLs that the server creates after checking who is asking.

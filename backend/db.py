@@ -7,7 +7,7 @@ from supabase import Client, create_client
 
 import config
 
-TABLES = {"users", "pots", "promises", "proofs", "quizzes", "payouts"}
+TABLES = {"users", "pots", "promises", "proofs", "quizzes", "payouts", "agent_events", "connections"}
 PHOTO_BUCKET = "proofs"
 
 
@@ -44,6 +44,30 @@ def where(table: str, order_by: str | None = None, **filters) -> list[dict]:
     if order_by:
         q = q.order(order_by)
     return q.execute().data
+
+
+def due_pots(now_iso: str) -> list[dict]:
+    """Pots whose deadline has passed and that the agent hasn't settled yet, oldest first."""
+    return (
+        _table("pots").select("*").lte("deadline", now_iso).is_("settled_at", "null").order("deadline").execute().data
+    )
+
+
+def open_pot_count() -> int:
+    """How many pots are still waiting for their deadline (for the agent status line)."""
+    return len(_table("pots").select("id").is_("settled_at", "null").execute().data)
+
+
+def recent_events(pot_ids: list[str], limit: int = 30) -> list[dict]:
+    if not pot_ids:
+        return []
+    return (
+        _table("agent_events").select("*").in_("pot_id", pot_ids).order("created_at", desc=True).limit(limit).execute().data
+    )
+
+
+def delete(table: str, id: str) -> None:
+    _table(table).delete().eq("id", id).execute()
 
 
 def update(table: str, id: str, fields: dict) -> dict:

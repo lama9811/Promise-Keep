@@ -3,25 +3,18 @@ import { Link, useParams } from 'react-router'
 import { motion } from 'motion/react'
 import { api } from '../api'
 import { formatCents } from '../money'
+import { timeLeft } from '../deal'
 import CoinStage from '../three/CoinStage'
 import ProvePanel from '../components/ProvePanel'
 import { setCoin } from '../three/coinStore'
 
 const EASE = [0.16, 1, 0.3, 1]
 
-function timeLeft(deadline) {
-  const ms = new Date(deadline) - new Date()
-  if (ms <= 0) return 'The deadline has passed'
-  const h = Math.floor(ms / 3.6e6)
-  const d = Math.floor(h / 24)
-  if (d >= 1) return `${d} day${d === 1 ? '' : 's'}, ${h % 24} hour${h % 24 === 1 ? '' : 's'} left`
-  const m = Math.floor((ms % 3.6e6) / 6e4)
-  return `${h} hour${h === 1 ? '' : 's'}, ${m} min left`
-}
-
 function statusLine(p) {
   if (p.status === 'draft') return 'Payment not finished, so this promise is not locked in yet.'
   if (p.status === 'active') return 'Locked in. PayPal is holding the stake.'
+  if (p.settled_at && p.outcome === 'won') return 'Promise kept. The agent sent the stake back.'
+  if (p.settled_at && p.outcome === 'lost') return 'Promise missed. The agent paid the stake out.'
   if (p.outcome === 'won' || p.status === 'won') return 'Promise kept. The stake goes back.'
   if (p.outcome === 'lost' || p.status === 'lost') return 'Promise broken. The stake goes out.'
   return 'Settled.'
@@ -76,7 +69,7 @@ export default function PromisePage() {
         <div>
           <h1 className="font-display text-5xl font-extrabold tracking-tight">No promise here.</h1>
           <p className="mt-3 text-ink-soft">The link may be wrong or incomplete.</p>
-          <Link to="/" className="mt-8 inline-block rounded-full bg-cobalt px-6 py-3 font-semibold text-white">
+          <Link to="/app" className="mt-8 inline-block rounded-full bg-cobalt px-6 py-3 font-semibold text-white">
             Make a promise
           </Link>
         </div>
@@ -106,14 +99,41 @@ export default function PromisePage() {
                 </span>
               </div>
 
+              {p.settled_at ? (
+                <p className="mt-10 max-w-md text-lg leading-relaxed text-ink-soft">
+                  <span className="font-semibold text-ink">{formatCents(p.stake_cents)}</span>{' '}
+                  {p.outcome === 'won' ? 'went back to the PayPal account that paid.' : 'was paid out after the deadline.'}
+                </p>
+              ) : (
               <p className="mt-10 max-w-md text-lg leading-relaxed text-ink-soft">
                 <span className="font-semibold text-ink">{formatCents(p.stake_cents)}</span> on the line.{' '}
                 {p.deadline && <span>{timeLeft(p.deadline)}.</span>} If {p.name || 'you'} {p.name ? 'misses' : 'miss'} it, the
                 money goes to <span className="font-semibold text-ink">{p.recipient === 'charity' ? 'charity' : p.recipient}</span>.
               </p>
+              )}
+
+              {p.settled_at && (p.agent_note || p.agent_summary) && (
+                <div className="mt-10 max-w-xl rounded-2xl border border-line bg-surface p-5 shadow-[0_20px_40px_-30px_rgba(30,59,255,0.4)]">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-ink-soft">
+                    <span className="grid size-6 place-items-center rounded-full bg-cobalt text-[11px] font-bold text-white">AI</span>
+                    From the promise agent
+                  </p>
+                  <p className="mt-3 font-display text-xl font-semibold leading-snug">{p.agent_note || p.agent_summary}</p>
+                  {p.agent_note && p.agent_summary && <p className="mt-2 text-sm leading-relaxed text-ink-soft">{p.agent_summary}</p>}
+                </div>
+              )}
 
               <div className="mt-10 max-w-xl">
-                <ProvePanel promise={p} onChange={refresh} demoAvailable={demoAvailable} />
+                {p.settled_at ? null : p.is_mine ? (
+                  <ProvePanel promise={p} onChange={refresh} demoAvailable={demoAvailable} />
+                ) : (
+                  <p className="rounded-2xl border border-line bg-surface px-5 py-4 text-ink-soft">
+                    You're looking at {p.name ? `${p.name}'s` : 'someone else\'s'} promise. Only they can add proof.{' '}
+                    <Link to="/app" className="text-cobalt underline underline-offset-4">
+                      Make your own
+                    </Link>
+                  </p>
+                )}
               </div>
             </motion.div>
           ) : (
@@ -173,6 +193,16 @@ export default function PromisePage() {
                   <dt className="text-ink-soft">Stake captured</dt>
                   <dd className="mt-0.5 break-all font-medium">{p.paypal_capture_id || 'Not paid yet'}</dd>
                 </div>
+                {(p.money_moves || []).map((m, i) => (
+                  <div key={i}>
+                    <dt className="text-ink-soft">
+                      {m.kind === 'refund' ? 'Refunded' : 'Paid out'} {formatCents(m.amount_cents)} to {m.to}
+                    </dt>
+                    <dd className="mt-0.5 break-all font-medium">
+                      {m.paypal_id || 'Sent'} <span className="font-normal text-ink-soft">({m.status})</span>
+                    </dd>
+                  </div>
+                ))}
               </dl>
             </div>
           </div>

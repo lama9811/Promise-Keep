@@ -8,3 +8,5 @@ pillow
 imagehash
 python-multipart
 pytest
+requests
+# installed with --no-deps: pip install --no-deps paypal-agent-toolkit==1.11.0

@@ -127,20 +127,20 @@ def test_expired_word_is_refused(client, fake_db, ai_says, demo_on):
 # ---------- Any activity (photo proof) ----------
 
 def test_photo_promise_flow_and_12_hour_rule(client, ai_says, demo_off):
-    pid = active(client, activity="practice guitar", proof="photo", proof_hint="You holding your guitar")
+    pid = active(client, activity="do yoga", proof="workout", proof_hint="You on your yoga mat")
     assert client.post(f"/promises/{pid}/checkin/start", json=NEAR).status_code == 400
 
     p = client.post(f"/promises/{pid}/word", json={}).json()
     r = send_photo(client, pid, p["open_proof"]["id"], jpeg(pattern=5)).json()
     assert r["counted"] is True
-    assert ai_says["calls"][-1][1:] == ("practice guitar", "photo")
+    assert ai_says["calls"][-1][1:] == ("do yoga", "workout")
 
     r = client.post(f"/promises/{pid}/word", json={})
     assert r.status_code == 409 and "12 hours" in r.json()["detail"]
 
 
 def test_unsure_goes_to_friend_and_screen_fails(client, ai_says, demo_on):
-    pid = active(client, activity="cook dinner", proof="photo")
+    pid = active(client, activity="cook dinner", proof="workout")
     ai_says["v"] = {**PASS, "confidence": 0.5}
     p = client.post(f"/promises/{pid}/word", json={"demo": True}).json()
     r = send_photo(client, pid, p["open_proof"]["id"], jpeg(pattern=6)).json()
@@ -154,7 +154,7 @@ def test_unsure_goes_to_friend_and_screen_fails(client, ai_says, demo_on):
 
 
 def test_ai_busy_keeps_word_valid(client, monkeypatch, demo_on):
-    pid = active(client, activity="read", proof="photo")
+    pid = active(client, activity="read", proof="workout")
     monkeypatch.setattr(db, "upload_photo", lambda *a, **k: None)
 
     def busy(*a):
@@ -168,23 +168,23 @@ def test_ai_busy_keeps_word_valid(client, monkeypatch, demo_on):
 
 
 def test_not_a_photo_and_inactive_promise(client, ai_says, fake_paypal, demo_on):
-    pid = active(client, activity="read", proof="photo")
+    pid = active(client, activity="read", proof="workout")
     p = client.post(f"/promises/{pid}/word", json={"demo": True}).json()
     assert send_photo(client, pid, p["open_proof"]["id"], b"hello").status_code == 422
 
     fake_paypal.capture_status = "PENDING"
-    c = client.post("/promises", json=promise_body(activity="read", proof="photo", gym_lat=None, gym_lng=None)).json()
+    c = client.post("/promises", json=promise_body(activity="read", proof="workout", gym_lat=None, gym_lng=None)).json()
     client.post(f"/promises/{c['promise_id']}/capture", json={"order_id": c["order_id"]})
     assert client.post(f"/promises/{c['promise_id']}/word", json={}).status_code == 409
 
 
-def test_friend_and_quiz_promises_dont_use_photos(client, demo_on):
-    pid = active(client, activity="stay off instagram", proof="friend")
+def test_steps_and_run_promises_dont_use_live_photos(client, demo_on):
+    pid = active(client, activity="walk 10,000 steps", proof="steps")
     assert client.post(f"/promises/{pid}/word", json={"demo": True}).status_code == 400
 
 
 def test_a_proof_can_only_be_judged_once(client, fake_db, ai_says, demo_on, monkeypatch):
-    pid = active(client, activity="read", proof="photo")
+    pid = active(client, activity="read", proof="workout")
     proof_id = client.post(f"/promises/{pid}/word", json={"demo": True}).json()["open_proof"]["id"]
     real = fake_db.update_if_null
 
@@ -197,7 +197,7 @@ def test_a_proof_can_only_be_judged_once(client, fake_db, ai_says, demo_on, monk
 
 
 def test_twelve_hour_rule_rechecked_when_counting(client, fake_db, ai_says, demo_off):
-    pid = active(client, activity="read", proof="photo")
+    pid = active(client, activity="read", proof="workout")
     first = client.post(f"/promises/{pid}/word", json={}).json()["open_proof"]["id"]
     # A second open proof sneaks in, e.g. from two tabs at once.
     copy = {k: v for k, v in fake_db.tables["proofs"][first].items() if k != "id"}

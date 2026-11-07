@@ -119,6 +119,30 @@ def refund_capture(capture_id: str, request_id: str) -> dict:
     return {"id": data["id"], "status": data["status"]}
 
 
+def verify_capture(order_id: str, expected_cents: int) -> dict:
+    """Ask PayPal (through PayPal's agent toolkit) whether the stake order really was
+    captured for the expected amount. Returns {'ok', 'status', 'amount'}."""
+    import json
+
+    from paypal_agent_toolkit.shared.api import PayPalAPI
+    from paypal_agent_toolkit.shared.configuration import Context
+
+    api = PayPalAPI(
+        client_id=config.PAYPAL_CLIENT_ID,
+        secret=config.PAYPAL_SECRET,
+        context=Context(sandbox="sandbox" in config.PAYPAL_BASE, source="PROMISE-KEEPER-AGENT"),
+    )
+    data = json.loads(api.run("get_order_details", {"order_id": order_id}))
+    status = data.get("status")
+    amount = (data.get("amount") or "").replace("USD", "").strip()
+    ok = status == "COMPLETED" and amount == cents_to_str(expected_cents)
+    return {"ok": ok, "status": status, "amount": amount}
+
+
+class DuplicateBatch(PayPalError):
+    """PayPal already has a payout batch with this sender_batch_id: it was sent before."""
+
+
 def send_payouts(batch_id: str, items: list[tuple[str, int, str]]) -> dict:
     """One payout batch. items = [(email, amount_cents, note), ...].
 
@@ -148,6 +172,8 @@ def send_payouts(batch_id: str, items: list[tuple[str, int, str]]) -> dict:
         json=body,
         timeout=30,
     )
+    if resp.status_code == 400 and ("DUPLICATE" in resp.text or "already" in resp.text.lower()):
+        raise DuplicateBatch(resp.status_code, resp.text)
     data = _check(resp)
     header = data["batch_header"]
     return {"id": header["payout_batch_id"], "status": header["batch_status"]}

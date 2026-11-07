@@ -16,8 +16,10 @@ Plan and schedule: APPROACH.md. Full spec: ~/Desktop/Promise-Keeper-PRD-and-Buil
 - `.env` is never committed. Only the backend holds secrets.
 - Every stake ends as exactly one refund or one payout. No money left in limbo.
 - A promise only becomes `active` when the capture status is `COMPLETED` (not `PENDING`).
-- The promise owner is the PayPal account that actually paid (`payer.email_address`
-  from the capture), not the email typed in the form.
+- A promise belongs to the signed-in account (Supabase Auth: Google or email link). Only the
+  owner can capture or prove it (`auth.owned_promise`; anyone else gets a 404). Money goes back
+  to the PayPal account that actually paid (`promises.payer_email`, from the capture), never a typed email.
+- Every write route uses `Depends(auth.current_user)`. `GET /promises/{id}` stays public (share links).
 - Photos live in a **private** Supabase bucket; show them only through short-lived
   signed URLs (`db.photo_url`) after checking who is asking.
 - API errors to the browser are generic; details go to the server log.
@@ -31,29 +33,53 @@ Plan and schedule: APPROACH.md. Full spec: ~/Desktop/Promise-Keeper-PRD-and-Buil
 - Python is 3.13 (`backend/.venv`); 3.11 isn't installed.
 
 ## Layout
-- `backend/main.py`: FastAPI routes (promises). `proof_routes.py`: check-in, live word, photo referee.
+- `backend/auth.py`: checks the browser's Supabase access token, finds or creates the `users` row.
+- `backend/main.py`: FastAPI routes (promises, `/me`, `/me/promises`). `proof_routes.py`: check-in, live word, photo referee.
   `views.py`: what the browser may see. `checks.py`: haversine, phash duplicates, EXIF date. `words.py`: 200 live words.
   `paypal.py`: httpx calls (token, order, capture,
-  refund, payouts). `ai.py`: Gemini JSON-mode calls. `deals.py`: validates AI output
+  refund, payouts, `verify_capture` via PayPal's agent toolkit). `agent.py`: the promise agent (Gemini function
+  calling, runs every `AGENT_INTERVAL_SECONDS` and on `POST /agent/run` with `X-Agent-Key`). `settle.py`: the guarded
+  money tools the agent calls; all money rules live there, plus `finish_by_code` as the backstop. `ai.py`: Gemini JSON-mode calls. `deals.py`: validates AI output
   in code. `settle_math.py`: pure pot-split math. `db.py`: Supabase helpers.
   `schema.sql`: paste into Supabase SQL Editor.
-- `frontend/src/pages/`: `Home` (hero + composer + deal sheet), `PromisePage` (`/p/:id`), `NotFound`.
+- `frontend/src/pages/`: `Home` (`/`, landing only: hero, coin, "Make your first promise" button, How it works),
+  `SignIn` (`/signin`: Google + email link + demo button), `app/*` (sign-in required, inside `src/app/AppShell.jsx`:
+  sidebar on desktop, bottom tabs on phones): `Overview` (`/app`), `NewPromise` (`/app/new`: composer + deal sheet + coin),
+  `Promises`, `Activity`, `Wallet`, `Account`. Shared hooks in `src/app/data.js`, UI bits in `src/app/ui.jsx`.
+  Numbers shown there come only from real promises and proofs, never made-up data. `PromisePage` (`/p/:id`, public; Prove panel only when `is_mine`), `NotFound`.
+- `frontend/src/auth.jsx`: `AuthProvider`, `useAuth`, `RequireAuth`. `src/lib/supabase.js` is used for sign-in only;
+  `api.js` adds the `Authorization: Bearer` token to every call.
 - `frontend/src/components/`: `DealSheet` (contract sentence + proof choice + PayPal button),
   `GymPicker` (Leaflet, lazy-loaded, gym proofs only), `ProvePanel` (the step-by-step "Prove it"
   card on the promise page), `LiveCamera` (in-app camera only, no gallery), `HowItWorks` (motion cards).
 - `frontend/src/three/`: the 3D coin. `coinStore.js` is shared state the coin reads every
   frame (modes `idle` / `deal` / `locked` / `progress`); call `setCoin` / `kickCoin`
   instead of passing props.
-- Env: `backend/.env` (see `.env.example`), `frontend/.env.local` (`VITE_API_URL`, `VITE_PAYPAL_CLIENT_ID`).
+- Env: `backend/.env` (see `.env.example`), `frontend/.env.local` (`VITE_API_URL`, `VITE_PAYPAL_CLIENT_ID`,
+  `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`).
 
 ## Status (update as steps finish)
-- Promises can be about anything (user decision, Nov 6). `promises.activity` is free text;
+- FITNESS ONLY (user decision, Nov 7; replaces "anything"). Proof types: `gym`, `steps`, `run`, `workout`, each with
+  `goal_metric`/`goal_value` (10000 steps, 5 km, 30 min, gym = visit). Sources: Strava + WHOOP (OAuth, `connect.py`),
+  Apple Health via an iPhone Shortcut (`POST /shortcut/steps`, per-user key, only its hash stored), screenshots read by
+  Gemini (`ai.read_fitness_screenshot`), gym check-in + live photo. All counting rules in `fitness.record`: inside the
+  promise window, reaches the goal, one counted per day, a source id never reused. `migrations/003_fitness.sql`.
+  Old proof types (photo/quiz/friend) still load but can't be created.
+- (Superseded) Promises can be about anything (user decision, Nov 6). `promises.activity` is free text;
   `promises.proof` is how it's proven: `gym` (150 m + 30 min + live-word photo), `photo`
   (live-word photo of doing it), `quiz` (Step 6), `friend` (F8).
 - Done: Steps 1, 2 (PayPal sandbox smoke test passed), 4 (F1, F2), 5 backend + screens
   (check-in, live word, photo referee), settle split math, light redesign.
-- Backend tests: 45 passing.
-- Waiting: `schema.sql` not yet run in Supabase, so nothing has been tested against the real DB yet.
+- Accounts (Nov 6): sign-up lives at `/signin`; the composer moved off the landing page into `/app`.
+- Promise agent (Nov 7): settles pots automatically at the deadline (user chose automatic, no approval step).
+  Needs `migrations/002_agent.sql` run in Supabase and `CHARITY_EMAIL` (a sandbox personal account) in `backend/.env`.
+  Gemini wants tool results sent back with role `user` (role `tool` is rejected).
+  `paypal-agent-toolkit` is installed with `--no-deps` (its extras pin langchain/crewai); only `shared/` is used.
+- Backend tests: 79 passing. Tests sign in with the fake token `tok-<name>` (`conftest.as_user`).
+- Nov 6: `schema.sql` run in Supabase (6 tables, RLS on, private `proofs` bucket); publishable key set.
+  The Supabase SQL Editor kept sending empty queries, so schema changes were run with psycopg over the
+  direct DB host (IPv6 works here). Still waiting: Google provider switched on, and
+  `http://localhost:5180/**` added to Supabase Auth redirect URLs.
 - Next: quiz (F5), settle + group pots (F6, F7), friend referee (F8), demo mode + deploy (F9).
 - Rules added beyond the PRD: the live word is issued at "I'm done" (not at check-in), because a
   10-minute word can't survive a 30-minute stay; one counted proof per 12 hours

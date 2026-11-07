@@ -118,13 +118,13 @@ function SettleIllustration() {
 const STEPS = [
   {
     title: 'Lock it in',
-    body: 'Type your goal in plain words. The AI turns it into a clear deal, and PayPal holds your stake.',
+    body: 'Type your fitness goal in plain words, like “10,000 steps a day” or “gym 4 times this week”. The AI turns it into a clear deal, and PayPal holds your stake.',
     tint: 'bg-cobalt-soft',
     Art: LockIllustration,
   },
   {
     title: 'Prove it',
-    body: 'Promise anything. Prove it with a live photo holding up a secret word, while you do it. The gym adds a location check, studying gets a quiz on your own notes, and your friend confirms what a photo can\'t show.',
+    body: 'Your workouts are the proof. Runs and rides come straight from Strava, workouts from WHOOP, steps from your Apple Watch. At the gym, check in on your phone and snap a photo with a secret word. Any other screenshot, the AI reads.',
     tint: 'bg-kept-soft',
     Art: ProveIllustration,
   },

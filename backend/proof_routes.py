@@ -16,10 +16,11 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 import ai
+import auth
 import checks
 import config
 import db
@@ -43,10 +44,8 @@ def _demo(requested: bool) -> bool:
     return bool(requested and config.DEMO_MODE)
 
 
-def _active_promise(promise_id: str) -> dict:
-    promise = db.get("promises", promise_id)
-    if not promise:
-        raise HTTPException(404, "Promise not found.")
+def _active_promise(promise_id: str, user: dict) -> dict:
+    promise = auth.owned_promise(promise_id, user)  # only the owner can prove it
     if promise["status"] != "active":
         raise HTTPException(409, "This promise isn't active, so it can't take proof right now.")
     pot = db.get("pots", promise["pot_id"])
@@ -58,6 +57,8 @@ def _active_promise(promise_id: str) -> dict:
 def _check_location(promise: dict, lat: float | None, lng: float | None, demo: bool, moment: str):
     if demo:
         return
+    if promise.get("gym_lat") is None or promise.get("gym_lng") is None:
+        raise HTTPException(422, "This promise has no gym pinned on the map, so prove it with WHOOP or a screenshot instead.")
     if lat is None or lng is None:
         raise HTTPException(422, "We need your location for a gym check-in. Allow location access and try again.")
     dist = checks.distance_m(promise["gym_lat"], promise["gym_lng"], lat, lng)
@@ -85,8 +86,8 @@ class Where(BaseModel):
 # ---------- 1. "I'm here" (gym only) ----------
 
 @router.post("/promises/{promise_id}/checkin/start")
-def checkin_start(promise_id: str, body: Where):
-    promise = _active_promise(promise_id)
+def checkin_start(promise_id: str, body: Where, user: dict = Depends(auth.current_user)):
+    promise = _active_promise(promise_id, user)
     if promise["proof"] != "gym":
         raise HTTPException(400, "Only gym promises use check-in.")
     demo = _demo(body.demo)
@@ -95,7 +96,7 @@ def checkin_start(promise_id: str, body: Where):
 
     existing = views.open_proof(db.where("proofs", order_by="started_at", promise_id=promise_id))
     if existing and existing["kind"] == "checkin":
-        return views.promise_view(promise)  # already checked in: safe to tap twice
+        return views.promise_view(promise, user)  # already checked in: safe to tap twice
 
     _check_location(promise, body.lat, body.lng, demo, "Check-in")
     started = _now() - (timedelta(minutes=checks.MIN_VISIT_MINUTES) if demo else timedelta(0))
@@ -106,14 +107,14 @@ def checkin_start(promise_id: str, body: Where):
         "lat": body.lat,
         "lng": body.lng,
     })
-    return views.promise_view(promise)
+    return views.promise_view(promise, user)
 
 
 # ---------- 2. Issue a live word ----------
 
 @router.post("/promises/{promise_id}/word")
-def issue_word(promise_id: str, body: Where):
-    promise = _active_promise(promise_id)
+def issue_word(promise_id: str, body: Where, user: dict = Depends(auth.current_user)):
+    promise = _active_promise(promise_id, user)
     demo = _demo(body.demo)
     proofs = db.where("proofs", order_by="started_at", promise_id=promise_id)
     open_ = views.open_proof(proofs)
@@ -129,15 +130,15 @@ def issue_word(promise_id: str, body: Where):
             raise HTTPException(409, f"Stay a bit longer: {mins} more minute{'s' if mins != 1 else ''} until your visit counts.")
         _check_location(promise, body.lat, body.lng, demo, "Finishing")
         if open_["word"]:
-            return views.promise_view(promise)
+            return views.promise_view(promise, user)
         db.update("proofs", open_["id"], {"live_word": words.pick(avoid=last_word), "live_word_expires_at": expires})
-        return views.promise_view(promise)
+        return views.promise_view(promise, user)
 
-    if promise["proof"] == "photo":
+    if promise["proof"] in ("photo", "workout"):  # a live photo of you mid-workout counts
         if _recently_counted(promise_id) and not demo:
             raise HTTPException(409, f"You already have a counted proof in the last {MIN_HOURS_BETWEEN_COUNTED} hours. Come back later.")
         if open_ and open_["word"]:
-            return views.promise_view(promise)
+            return views.promise_view(promise, user)
         db.insert("proofs", {
             "promise_id": promise_id,
             "kind": "photo",
@@ -145,7 +146,7 @@ def issue_word(promise_id: str, body: Where):
             "live_word": words.pick(avoid=last_word),
             "live_word_expires_at": expires,
         })
-        return views.promise_view(promise)
+        return views.promise_view(promise, user)
 
     raise HTTPException(400, "This promise is proven another way, not with a photo.")
 
@@ -172,8 +173,13 @@ def _decide(v: dict) -> tuple[str, bool]:
 # Plain `def` on purpose: FastAPI runs it in a worker thread, so the slow AI call and
 # upload never block other requests.
 @router.post("/promises/{promise_id}/photo")
-def submit_photo(promise_id: str, proof_id: str = Form(...), photo: UploadFile = File(...)):
-    promise = _active_promise(promise_id)
+def submit_photo(
+    promise_id: str,
+    proof_id: str = Form(...),
+    photo: UploadFile = File(...),
+    user: dict = Depends(auth.current_user),
+):
+    promise = _active_promise(promise_id, user)
     proof = db.get("proofs", proof_id)
     if not proof or proof["promise_id"] != promise_id:
         raise HTTPException(404, "That check-in wasn't found. Start again.")
@@ -218,7 +224,7 @@ def submit_photo(promise_id: str, proof_id: str = Form(...), photo: UploadFile =
                 verdict = "fail"
                 reason = f"You already have a counted proof in the last {MIN_HOURS_BETWEEN_COUNTED} hours."
                 db.update("proofs", proof_id, {"ai_verdict": verdict, "ai_reason": reason})
-        view = views.promise_view(promise)
+        view = views.promise_view(promise, user)
         return {"verdict": verdict, "reason": reason, "counted": counted, "promise": view}
 
     # Code checks first: they are free and can't be talked around.
