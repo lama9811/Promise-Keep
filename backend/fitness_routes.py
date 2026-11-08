@@ -105,8 +105,8 @@ def disconnect(provider: str, user: dict = Depends(auth.current_user)):
 
 def sync_promise(promise: dict, conns: list[dict] | None = None) -> int:
     """Pull workouts from the owner's connected apps into this promise. Returns new proofs."""
-    if promise["status"] != "active" or promise["proof"] == "steps":
-        return 0  # steps come from Apple Health (Shortcut) or screenshots
+    if promise["status"] != "active" or promise["proof"] in deals.APPLE_ONLY:
+        return 0  # steps and rings come from Apple Health (Shortcut) or screenshots
     conns = conns if conns is not None else db.where("connections", user_id=promise["user_id"])
     start, _ = fitness.window(promise)
     new = 0
@@ -169,18 +169,38 @@ def new_shortcut_key(user: dict = Depends(auth.current_user)):
     return {"key": key}
 
 
-class StepsIn(BaseModel):
-    steps: float = Field(ge=0, le=200_000)
+class ActivityIn(BaseModel):
+    """What the iPhone Shortcut sends: today's totals from Apple Health / Apple Fitness."""
+    steps: float | None = Field(default=None, ge=0, le=200_000)
+    exercise_minutes: float | None = Field(default=None, ge=0, le=1_440)  # green Exercise ring
+    move_calories: float | None = Field(default=None, ge=0, le=20_000)    # red Move ring
     date: str | None = None  # YYYY-MM-DD on the phone; defaults to today (UTC)
 
 
-@router.post("/shortcut/steps")
-def shortcut_steps(body: StepsIn, x_shortcut_key: str | None = Header(default=None)):
+def _ring_activity(proof: str, body: ActivityIn, day: str, now: datetime) -> Activity | None:
+    """One Apple Health activity for a promise of this kind, or None if the Shortcut didn't send that number."""
+    if proof == "steps" and body.steps is not None:
+        v = int(body.steps)
+        return Activity("health", f"health-{day}-steps-{v}", now, f"Apple Health, {v:,} steps", steps=v)
+    if proof == "exercise" and body.exercise_minutes is not None:
+        v = int(body.exercise_minutes)
+        return Activity("health", f"health-{day}-exercise-{v}", now, f"Apple Fitness, {v} exercise minutes", minutes=v)
+    if proof == "move" and body.move_calories is not None:
+        v = int(body.move_calories)
+        return Activity("health", f"health-{day}-move-{v}", now, f"Apple Fitness, {v:,} Move calories", calories=v)
+    return None
+
+
+@router.post("/shortcut/activity")
+@router.post("/shortcut/steps")  # older Shortcuts that only send steps
+def shortcut_activity(body: ActivityIn, x_shortcut_key: str | None = Header(default=None)):
     if not x_shortcut_key or not x_shortcut_key.startswith("pk_"):
         raise HTTPException(401, "Missing your Promise Keeper key. Copy it again from your account page.")
     users = db.where("users", shortcut_key_hash=_hash_key(x_shortcut_key))
     if not users or not hmac.compare_digest(users[0]["shortcut_key_hash"], _hash_key(x_shortcut_key)):
         raise HTTPException(401, "That key doesn't match. Make a new one on your account page.")
+    if body.steps is None and body.exercise_minutes is None and body.move_calories is None:
+        raise HTTPException(422, "Send at least one of steps, exercise_minutes or move_calories.")
     user = users[0]
     now = _now()
     day = now.date().isoformat()
@@ -190,23 +210,30 @@ def shortcut_steps(body: StepsIn, x_shortcut_key: str | None = Header(default=No
         except ValueError:
             raise HTTPException(422, "The date should look like 2026-11-07.")
         if abs((d - now.date()).days) > 1:
-            raise HTTPException(422, "Only today's steps can be sent.")
+            raise HTTPException(422, "Only today's activity can be sent.")
         day = d.isoformat()
-    steps = int(body.steps)
     results = []
     for p in db.where("promises", user_id=user["id"]):
-        if p["status"] != "active" or p["proof"] != "steps":
+        if p["status"] != "active" or p["proof"] not in deals.APPLE_ONLY:
             continue
         pot = db.get("pots", p["pot_id"])
         if pot and views.parse_ts(pot["deadline"]) <= now:
             continue
-        row = fitness.record(p, Activity("health", f"health-{day}-{steps}", now, f"Apple Health, {steps:,} steps", steps=steps))
+        a = _ring_activity(p["proof"], body, day, now)
+        row = fitness.record(p, a) if a else None
         if row:
             results.append({"promise": p["summary"] or p["activity"], "counted": row["counted"], "reason": row["ai_reason"]})
+    sent = ", ".join(x for x in [
+        f"{int(body.steps):,} steps" if body.steps is not None else "",
+        f"{int(body.exercise_minutes)} exercise min" if body.exercise_minutes is not None else "",
+        f"{int(body.move_calories):,} Move cal" if body.move_calories is not None else "",
+    ] if x)
     if not results:
-        return {"message": "Got it, but you have no active step promise right now.", "results": []}
+        return {"message": f"Got {sent}. You have no active step or ring promise right now.", "results": []}
     counted = sum(1 for r in results if r["counted"])
-    msg = f"{steps:,} steps sent. " + (f"Counted for {counted} promise{'s' if counted != 1 else ''}." if counted else results[0]["reason"])
+    msg = f"Got {sent}. " + (
+        f"Counted for {counted} promise{'s' if counted != 1 else ''}." if counted else results[0]["reason"]
+    )
     return {"message": msg, "results": results}
 
 
@@ -292,9 +319,12 @@ def submit_screenshot(
             return verdict(_fail(promise, "That doesn't look like a gym check-in. Send your gym app's check-in screen.", path, phash, r["confidence"]))
         a = Activity("screenshot", f"shot-{phash}", _now(), f"{app} gym check-in")
     else:
-        a = Activity("screenshot", f"shot-{phash}", _now(), app, steps=r.get("steps"), km=r.get("distance_km"), minutes=r.get("minutes"))
+        minutes = r.get("exercise_minutes") if promise["proof"] == "exercise" and r.get("exercise_minutes") is not None else r.get("minutes")
+        a = Activity("screenshot", f"shot-{phash}", _now(), app, steps=r.get("steps"), km=r.get("distance_km"),
+                     minutes=minutes, calories=r.get("move_calories"))
         if fitness.value_for(promise, a) is None:
-            want = {"steps": "a step count", "distance_km": "a distance", "minutes": "a workout time"}[metric]
+            want = {"steps": "a step count", "distance_km": "a distance", "minutes": "a workout time",
+                    "calories": "Move calories"}[metric]
             return verdict(_fail(promise, f"We couldn't find {want} on this screenshot.", path, phash, r["confidence"]))
     row = fitness.record(promise, a, ai_reason=f"{app}: {r['reason']}", confidence=r["confidence"], photo_path=path, photo_hash=phash)
     if not row:

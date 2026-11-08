@@ -225,3 +225,54 @@ def test_only_the_owner_can_send_proof(client, fake_db, fake_paypal, reads):
                     files={"screenshot": ("s.png", png(11), "image/png")})
     assert r.status_code == 404
     assert client.post(f"/promises/{p['id']}/sync", headers=as_user("mallory")).status_code == 404
+
+
+def test_strava_ignores_runs_typed_in_by_hand(monkeypatch):
+    items = [
+        {"id": 1, "name": "Real run", "sport_type": "Run", "distance": 5200, "moving_time": 1700,
+         "start_date": "2026-11-07T12:00:00Z", "manual": False},
+        {"id": 2, "name": "Typed run", "sport_type": "Run", "distance": 21000, "moving_time": 3600,
+         "start_date": "2026-11-07T13:00:00Z", "manual": True},
+    ]
+    monkeypatch.setattr(connect, "access_token", lambda conn: "t")
+    monkeypatch.setattr(connect, "_get", lambda provider, token, url, params=None: items)
+    acts = connect.strava_activities({"provider": "strava"}, NOW - timedelta(days=1))
+    assert [a.source_id for a in acts] == ["1"]
+    assert acts[0].km == 5.2 and acts[0].label == "Real run, 5.2 km"
+
+
+# ---------- Apple Fitness rings ----------
+
+def test_shortcut_sends_rings_to_the_right_promises(client, fake_db, fake_paypal, anon):
+    ex = active(client, fake_db, fake_paypal, activity="close my exercise ring", proof="exercise", goal_value=30, target_count=7)
+    mv = active(client, fake_db, fake_paypal, activity="burn 500 move calories", proof="move", goal_value=500, target_count=5)
+    st = active(client, fake_db, fake_paypal, activity="walk", proof="steps", goal_value=10000, target_count=7)
+    key = client.post("/me/shortcut-key").json()["key"]
+
+    r = anon.post("/shortcut/activity", json={"steps": 8000, "exercise_minutes": 41, "move_calories": 380},
+                  headers={"X-Shortcut-Key": key}).json()
+    assert "Got 8,000 steps, 41 exercise min, 380 Move cal." in r["message"]
+    assert len(r["results"]) == 3  # one result per step/ring promise
+    view = lambda p: client.get(f"/promises/{p['id']}").json()
+    assert view(ex)["done_count"] == 1  # 41 >= 30
+    assert view(mv)["done_count"] == 0  # 380 < 500
+    assert view(st)["done_count"] == 0  # 8,000 < 10,000
+    assert "short of 500 Move calories" in view(mv)["proofs"][0]["ai_reason"]
+
+
+def test_shortcut_needs_at_least_one_number(client, fake_db, fake_paypal, anon):
+    key = client.post("/me/shortcut-key").json()["key"]
+    assert anon.post("/shortcut/activity", json={}, headers={"X-Shortcut-Key": key}).status_code == 422
+
+
+def test_exercise_ring_only_counts_apple_data(client, fake_db, fake_paypal):
+    p = active(client, fake_db, fake_paypal, activity="close my exercise ring", proof="exercise", goal_value=30)
+    assert fitness.value_for(p, Activity("whoop", "w", NOW, "WHOOP", "hiit", minutes=60)) is None
+    assert fitness.value_for(p, Activity("health", "h", NOW, "Apple", minutes=35)) == 35
+
+
+def test_ring_screenshot_reads_move_calories(client, fake_db, fake_paypal, reads):
+    p = active(client, fake_db, fake_paypal, activity="burn 500 move calories", proof="move", goal_value=500)
+    reads.update(app="Apple Fitness", shows="rings", move_calories=612, exercise_minutes=34)
+    r = shot(client, p["id"], 21)
+    assert r["counted"] is True and r["promise"]["proofs"][-1]["metric_value"] == 612

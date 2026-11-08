@@ -44,6 +44,7 @@ class Activity:
     steps: float | None = None
     km: float | None = None
     minutes: float | None = None
+    calories: float | None = None
 
 
 def value_for(promise: dict, a: Activity) -> float | None:
@@ -57,7 +58,11 @@ def value_for(promise: dict, a: Activity) -> float | None:
             return None
         return a.km
     if metric == "minutes":
+        if promise["proof"] == "exercise" and a.source in ("strava", "whoop"):
+            return None  # the Exercise ring comes from Apple Health
         return a.minutes
+    if metric == "calories":
+        return a.calories
     if metric == "visit":  # gym: a strength/class workout of 20+ minutes, or a gym check-in screenshot
         if a.source == "screenshot":
             return 1  # the screenshot reader already checked it shows a gym check-in

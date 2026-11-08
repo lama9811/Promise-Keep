@@ -20,8 +20,8 @@ const IDEAS = [
   { icon: 'gym', title: 'Gym 4x a week', text: 'gym 4 times this week or $25 to charity', stake: '$25', proof: 'Check-in, WHOOP or gym app', tint: 'bg-kept-soft', ink: 'text-kept' },
   { icon: 'run', title: 'Run 5 km 3x', text: 'run 5 km 3 times this week or $15 to charity', stake: '$15', proof: 'Strava', tint: 'bg-sun-soft', ink: 'text-[#a07000]' },
   { icon: 'flame', title: '45-min workouts', text: 'work out 45 minutes 5 times this week or $20 to charity', stake: '$20', proof: 'WHOOP or Strava', tint: 'bg-broke-soft', ink: 'text-broke' },
-  { icon: 'run', title: 'Long run Sunday', text: 'run 10 km once by Sunday or $30 to charity', stake: '$30', proof: 'Strava', tint: 'bg-cobalt-soft', ink: 'text-cobalt' },
-  { icon: 'steps', title: '8k steps, 5 days', text: '8,000 steps 5 days this week or $10 to charity', stake: '$10', proof: 'Apple Health or screenshot', tint: 'bg-kept-soft', ink: 'text-kept' },
+  { icon: 'ring', title: 'Close Exercise ring', text: 'close my exercise ring every day this week or $20 to charity', stake: '$20', proof: 'Apple Watch', tint: 'bg-kept-soft', ink: 'text-kept' },
+  { icon: 'ring', title: '500 Move calories', text: 'burn 500 move calories 5 days this week or $15 to charity', stake: '$15', proof: 'Apple Watch', tint: 'bg-broke-soft', ink: 'text-broke' },
 ]
 
 function Hero({ first, money, loading }) {

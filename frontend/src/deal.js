@@ -6,16 +6,19 @@ export const PROOF_LABEL = {
   run: 'my runs, walks or rides (Strava or a screenshot)',
   workout: 'my workouts (WHOOP, Strava, a screenshot or a live photo)',
   gym: 'my gym visits (check-in, WHOOP or my gym app)',
+  exercise: 'my Apple Watch Exercise ring (minutes)',
+  move: 'my Apple Watch Move ring (calories)',
 }
 
 // What one "time" means for each kind, and how to say it.
-export const GOAL_UNIT = { steps: 'steps', run: 'km', workout: 'minutes' }
-export const GOAL_DEFAULT = { steps: 10000, run: 5, workout: 30 }
+export const GOAL_UNIT = { steps: 'steps', run: 'km', workout: 'minutes', exercise: 'minutes', move: 'calories' }
+export const GOAL_DEFAULT = { steps: 10000, run: 5, workout: 30, exercise: 30, move: 500 }
 
 export function goalText(metric, value) {
   if (metric === 'steps') return `${Number(value).toLocaleString()} steps`
   if (metric === 'distance_km') return `${Number(value)} km`
   if (metric === 'minutes') return `${Number(value)} min`
+  if (metric === 'calories') return `${Number(value).toLocaleString()} Move cal`
   return 'a gym session'
 }
 

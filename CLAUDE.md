@@ -65,6 +65,9 @@ Plan and schedule: APPROACH.md. Full spec: ~/Desktop/Promise-Keeper-PRD-and-Buil
   Gemini (`ai.read_fitness_screenshot`), gym check-in + live photo. All counting rules in `fitness.record`: inside the
   promise window, reaches the goal, one counted per day, a source id never reused. `migrations/003_fitness.sql`.
   Old proof types (photo/quiz/friend) still load but can't be created.
+- Apple Fitness rings (Nov 8): proof types `exercise` (minutes) and `move` (Move calories), Apple-only (Shortcut via
+  `POST /shortcut/activity` with steps/exercise_minutes/move_calories, or a ring screenshot). `migrations/004_rings.sql`.
+  Strava ignores `manual` (hand-typed) activities. WHOOP app is NOT allowed `read:profile` (don't request it).
 - (Superseded) Promises can be about anything (user decision, Nov 6). `promises.activity` is free text;
   `promises.proof` is how it's proven: `gym` (150 m + 30 min + live-word photo), `photo`
   (live-word photo of doing it), `quiz` (Step 6), `friend` (F8).
@@ -75,7 +78,7 @@ Plan and schedule: APPROACH.md. Full spec: ~/Desktop/Promise-Keeper-PRD-and-Buil
   Needs `migrations/002_agent.sql` run in Supabase and `CHARITY_EMAIL` (a sandbox personal account) in `backend/.env`.
   Gemini wants tool results sent back with role `user` (role `tool` is rejected).
   `paypal-agent-toolkit` is installed with `--no-deps` (its extras pin langchain/crewai); only `shared/` is used.
-- Backend tests: 79 passing. Tests sign in with the fake token `tok-<name>` (`conftest.as_user`).
+- Backend tests: 84 passing. Tests sign in with the fake token `tok-<name>` (`conftest.as_user`).
 - Nov 6: `schema.sql` run in Supabase (6 tables, RLS on, private `proofs` bucket); publishable key set.
   The Supabase SQL Editor kept sending empty queries, so schema changes were run with psycopg over the
   direct DB host (IPv6 works here). Still waiting: Google provider switched on, and

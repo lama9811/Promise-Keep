@@ -84,7 +84,7 @@ export default function ProvePanel({ promise, onChange, demoAvailable }) {
   const [demo, setDemo] = useState(false)
   const open = promise.open_proof
   const isGym = promise.proof === 'gym' && promise.has_gym  // check-in only works with a pinned gym
-  const fitness = ['gym', 'steps', 'run', 'workout'].includes(promise.proof)
+  const fitness = ['gym', 'steps', 'run', 'workout', 'exercise', 'move'].includes(promise.proof)
   const fitnessResult = (r) => setResult({ ...r, fitness: true })
   const checkedIn = open?.kind === 'checkin'
   const word = open?.word
@@ -210,11 +210,13 @@ export default function ProvePanel({ promise, onChange, demoAvailable }) {
         </div>
       )
     }
-  } else if (promise.proof === 'steps' || promise.proof === 'run' || promise.proof === 'gym') {
+  } else if (['steps', 'run', 'gym', 'exercise', 'move'].includes(promise.proof)) {
     body = (
       <p className="leading-relaxed text-ink-soft">
         {promise.proof === 'steps'
           ? 'Each day you reach your step goal, send it here. One a day counts.'
+          : promise.proof === 'exercise' || promise.proof === 'move'
+            ? `Each day you close your ${promise.proof === 'move' ? 'Move' : 'Exercise'} ring, send it here. One a day counts.`
           : promise.proof === 'run'
             ? 'Every run that reaches your distance counts, one per day.'
             : 'Every gym session counts, one per day.'}

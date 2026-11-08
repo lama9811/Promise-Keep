@@ -11,12 +11,15 @@ const NAME = { strava: 'Strava', whoop: 'WHOOP' }
 const BRAND = { strava: 'bg-[#fc4c02] text-white', whoop: 'bg-ink text-white' }
 
 // Which connected apps can prove which kind of promise.
-const APPS_FOR = { gym: ['whoop', 'strava'], run: ['strava', 'whoop'], workout: ['whoop', 'strava'], steps: [] }
+const APPS_FOR = { gym: ['whoop', 'strava'], run: ['strava', 'whoop'], workout: ['whoop', 'strava'], steps: [], exercise: [], move: [] }
+const APPLE = ['steps', 'exercise', 'move']
 const SHOT_HINT = {
   steps: 'Your Health, Watch, Fitbit or Google Fit screen showing today’s steps',
   run: 'Your run summary from Strava, Nike Run Club or Apple Fitness, with distance and date',
   workout: 'Your workout summary showing how long it lasted and the date',
   gym: 'Your gym app’s check-in screen (Planet Fitness, LA Fitness, Crunch…)',
+  exercise: 'Your Apple Fitness rings for today, showing Exercise minutes',
+  move: 'Your Apple Fitness rings for today, showing Move calories',
 }
 
 export function useConnections() {
@@ -120,14 +123,14 @@ export default function FitnessProof({ promise, onChange, onResult, setError }) 
       transition={{ duration: 0.5, ease: EASE }}
       className="space-y-3"
     >
-      {promise.proof === 'steps' && (
+      {APPLE.includes(promise.proof) && (
         <Row
           icon={<span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#ff2d55] text-lg text-white">♥</span>}
-          title="Apple Health / Apple Watch"
+          title="Apple Watch / Apple Fitness"
           text={
             conns?.shortcut
-              ? 'Run your “Send steps” Shortcut on your iPhone. It sends today’s steps here.'
-              : 'Set up the one-tap iPhone Shortcut once, then send your steps every evening.'
+              ? 'Run your “Send my activity” Shortcut on your iPhone. It sends today’s steps and rings here.'
+              : 'Set up the one-tap iPhone Shortcut once, then send your steps and rings every evening.'
           }
         >
           <Link to="/app/account#apple-health" className={`${btn} border border-line bg-surface hover:border-ink/25`}>

@@ -29,6 +29,7 @@ const PATHS = {
   shield: 'M12 3 4.5 6v5.5c0 4.5 3.2 8.3 7.5 9.5 4.3-1.2 7.5-5 7.5-9.5V6z',
   spark: 'M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18',
   copy: 'M9 9h11v11H9zM5 15H4V4h11v1',
+  ring: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9z',
   steps: 'M8 3c1.7 0 2.5 1.8 2.5 4S9.7 12 8 12 5.5 9.2 5.5 7 6.3 3 8 3zM6 14.5h4V17a2 2 0 0 1-4 0zM16 7c1.7 0 2.5 1.8 2.5 4S17.7 16 16 16s-2.5-2.8-2.5-5S14.3 7 16 7zM14 18.5h4V21a2 2 0 0 1-4 0z',
   run: 'M13.5 5.5a1.5 1.5 0 1 0 0-.01M9 20l2.5-5 3 2.5V22M7 12l3-3.5 4 1.5 2.5 3H20M11.5 15l-1.5-4',
 }
@@ -50,8 +51,8 @@ export function Icon({ name, className = 'size-5', strokeWidth = 1.8 }) {
   )
 }
 
-export const PROOF_ICON = { gym: 'gym', steps: 'steps', run: 'run', workout: 'flame', photo: 'camera', quiz: 'book', friend: 'friends' }
-export const PROOF_SHORT = { gym: 'Gym visits', steps: 'Daily steps', run: 'Runs', workout: 'Workouts', photo: 'Live photo', quiz: 'Notes quiz', friend: 'Friend confirms' }
+export const PROOF_ICON = { gym: 'gym', steps: 'steps', run: 'run', workout: 'flame', exercise: 'ring', move: 'ring', photo: 'camera', quiz: 'book', friend: 'friends' }
+export const PROOF_SHORT = { gym: 'Gym visits', steps: 'Daily steps', run: 'Runs', workout: 'Workouts', exercise: 'Exercise ring', move: 'Move ring', photo: 'Live photo', quiz: 'Notes quiz', friend: 'Friend confirms' }
 
 // The brand mark: a tiny chrome coin with a check.
 export function CoinMark({ className = 'size-8' }) {

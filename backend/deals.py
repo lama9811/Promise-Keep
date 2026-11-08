@@ -8,13 +8,18 @@ from zoneinfo import ZoneInfo
 #   steps   - a daily step goal: Apple Health via the iPhone Shortcut, or a screenshot
 #   run     - a distance goal (run, walk, ride): Strava, or a screenshot of the workout
 #   workout - any workout of at least N minutes: WHOOP, Strava, or a screenshot
-PROOFS = {"gym", "steps", "run", "workout"}
+#   exercise- close the Apple Exercise ring (N minutes): Apple Health via the Shortcut, or a screenshot
+#   move    - close the Apple Move ring (N calories): Apple Health via the Shortcut, or a screenshot
+PROOFS = {"gym", "steps", "run", "workout", "exercise", "move"}
+APPLE_ONLY = {"steps", "exercise", "move"}  # proven from Apple Health (Shortcut) or screenshots, not Strava/WHOOP
 LEGACY_PROOFS = {"photo", "quiz", "friend"}  # older promises still load; new ones can't use them
 
 # What one "time" means, per proof type, and sensible limits.
-GOAL_METRIC = {"gym": "visit", "steps": "steps", "run": "distance_km", "workout": "minutes"}
-GOAL_DEFAULT = {"gym": 1, "steps": 10_000, "run": 5, "workout": 30}
-GOAL_RANGE = {"steps": (500, 100_000), "distance_km": (0.5, 200), "minutes": (5, 600), "visit": (1, 1)}
+GOAL_METRIC = {"gym": "visit", "steps": "steps", "run": "distance_km", "workout": "minutes",
+               "exercise": "minutes", "move": "calories"}
+GOAL_DEFAULT = {"gym": 1, "steps": 10_000, "run": 5, "workout": 30, "exercise": 30, "move": 500}
+GOAL_RANGE = {"steps": (500, 100_000), "distance_km": (0.5, 200), "minutes": (5, 600), "visit": (1, 1),
+              "calories": (50, 5_000)}
 MIN_STAKE_CENTS = 100
 MAX_STAKE_CENTS = 10_000
 MAX_ACTIVITY_LEN = 80
@@ -40,6 +45,8 @@ def goal_text(metric: str | None, value) -> str:
         return f"{float(value):g} km"
     if metric == "minutes":
         return f"{int(value)} minutes"
+    if metric == "calories":
+        return f"{int(value):,} Move calories"
     return "a gym visit"
 
 

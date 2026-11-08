@@ -28,7 +28,7 @@ PROVIDERS = {
     "whoop": {
         "authorize": "https://api.prod.whoop.com/oauth/oauth2/auth",
         "token": "https://api.prod.whoop.com/oauth/oauth2/token",
-        "scope": "offline read:workout read:cycles read:recovery read:profile",
+        "scope": "offline read:workout read:cycles read:recovery read:sleep",
     },
 }
 STATE_MAX_AGE = 15 * 60
@@ -126,12 +126,6 @@ def finish(provider: str, user_id: str, code: str) -> dict:
         "expires_at": _expires(tok),
         "scope": tok.get("scope") if isinstance(tok.get("scope"), str) else PROVIDERS[provider]["scope"],
     }
-    if provider == "whoop":
-        try:
-            prof = _get("whoop", row["access_token"], "https://api.prod.whoop.com/developer/v2/user/profile/basic")
-            row["external_id"] = str(prof.get("user_id") or "") or None
-        except ConnectError:
-            pass
     existing = db.where("connections", user_id=user_id, provider=provider)
     if existing:
         return db.update("connections", existing[0]["id"], row)
@@ -178,6 +172,8 @@ def strava_activities(conn: dict, since: datetime) -> list[Activity]:
         items = _get("strava", token, "https://www.strava.com/api/v3/athlete/activities",
                      {"after": int(since.timestamp()), "per_page": 100, "page": page})
         for a in items:
+            if a.get("manual"):
+                continue  # typed in by hand, not recorded by a phone or watch: never counts
             km = round((a.get("distance") or 0) / 1000, 2)
             minutes = round((a.get("moving_time") or 0) / 60, 1)
             sport = (a.get("sport_type") or a.get("type") or "").lower()
