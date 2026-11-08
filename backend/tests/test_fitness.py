@@ -276,3 +276,17 @@ def test_ring_screenshot_reads_move_calories(client, fake_db, fake_paypal, reads
     reads.update(app="Apple Fitness", shows="rings", move_calories=612, exercise_minutes=34)
     r = shot(client, p["id"], 21)
     assert r["counted"] is True and r["promise"]["proofs"][-1]["metric_value"] == 612
+
+
+def test_ring_promises_only_accept_an_apple_rings_screen(client, fake_db, fake_paypal, reads):
+    p = active(client, fake_db, fake_paypal, activity="close my exercise ring", proof="exercise", goal_value=30)
+    # A 60-minute workout from another app must not close the Exercise ring.
+    reads.update(app="Strava", shows="workout", minutes=60)
+    r = shot(client, p["id"], 31)
+    assert r["counted"] is False and "rings screen" in r["reason"]
+    # A rings screen without the Exercise number doesn't fall back to workout minutes either.
+    reads.update(app="Apple Fitness", shows="rings", minutes=60, exercise_minutes=None)
+    r = shot(client, p["id"], 32)
+    assert r["counted"] is False and "workout time" in r["reason"]
+    reads.update(exercise_minutes=34)
+    assert shot(client, p["id"], 33)["counted"] is True

@@ -319,9 +319,16 @@ def submit_screenshot(
             return verdict(_fail(promise, "That doesn't look like a gym check-in. Send your gym app's check-in screen.", path, phash, r["confidence"]))
         a = Activity("screenshot", f"shot-{phash}", _now(), f"{app} gym check-in")
     else:
-        minutes = r.get("exercise_minutes") if promise["proof"] == "exercise" and r.get("exercise_minutes") is not None else r.get("minutes")
+        if promise["proof"] in ("exercise", "move"):
+            # Rings only come from Apple's own rings screen: never fall back to another app's workout minutes.
+            if r["shows"] != "rings":
+                return verdict(_fail(promise, "That isn't your Apple Fitness rings screen. Send a screenshot of today's rings.", path, phash, r["confidence"]))
+            minutes = r.get("exercise_minutes")
+            calories = r.get("move_calories")
+        else:
+            minutes, calories = r.get("minutes"), None
         a = Activity("screenshot", f"shot-{phash}", _now(), app, steps=r.get("steps"), km=r.get("distance_km"),
-                     minutes=minutes, calories=r.get("move_calories"))
+                     minutes=minutes, calories=calories)
         if fitness.value_for(promise, a) is None:
             want = {"steps": "a step count", "distance_km": "a distance", "minutes": "a workout time",
                     "calories": "Move calories"}[metric]
