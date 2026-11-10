@@ -61,8 +61,8 @@ function Sidebar({ name, email }) {
       isActive ? 'text-cobalt' : 'text-ink-soft hover:bg-canvas hover:text-ink'
     }`
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-surface lg:flex">
-      <Link to="/app" className="flex items-center gap-2.5 px-6 pb-6 pt-6">
+    <aside className="glass fixed inset-y-3 left-3 z-30 hidden w-60 flex-col rounded-[28px] lg:flex">
+      <Link to="/app" className="flex items-center gap-2.5 px-5 pb-6 pt-6">
         <CoinMark />
         <span className="font-display text-lg font-bold tracking-tight">Promise Keeper</span>
       </Link>
@@ -70,8 +70,9 @@ function Sidebar({ name, email }) {
       <div className="px-4">
         <Link
           to="/app/new"
-          className="flex items-center justify-center gap-2 rounded-xl bg-cobalt px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_24px_-12px_rgba(30,59,255,0.8)] transition-colors hover:bg-[#1631e0]"
+          className="group relative flex items-center justify-center gap-2 overflow-hidden rounded-2xl bg-cobalt px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_-12px_rgba(30,59,255,0.85),inset_0_1px_0_rgba(255,255,255,0.35)] transition-transform hover:-translate-y-0.5"
         >
+          <span aria-hidden="true" className="absolute inset-y-0 -left-1/2 w-1/2 -skew-x-12 bg-white/25 blur-md transition-transform duration-700 group-hover:translate-x-[300%]" />
           <Icon name="plus" className="size-4" strokeWidth={2.4} />
           New promise
         </Link>
@@ -86,7 +87,7 @@ function Sidebar({ name, email }) {
                   <motion.span
                     layoutId="nav-pill"
                     transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                    className="absolute inset-0 rounded-xl bg-cobalt-soft"
+                    className="absolute inset-0 rounded-xl bg-white shadow-[0_8px_20px_-10px_rgba(30,59,255,0.45),inset_0_0_0_1px_rgba(30,59,255,0.12)]"
                   />
                 )}
                 <Icon name={n.icon} className="relative size-5" />
@@ -98,7 +99,7 @@ function Sidebar({ name, email }) {
       </nav>
 
       <div className="mt-auto p-4">
-        <div className="rounded-2xl bg-canvas p-4">
+        <div className="rounded-2xl bg-white/60 p-4">
           <SandboxBadge />
           <p className="mt-2 text-xs leading-relaxed text-ink-soft">
             Payments run on PayPal's sandbox, so you can try everything without real money.
@@ -114,7 +115,7 @@ function Sidebar({ name, email }) {
             onClick={out}
             title="Sign out"
             aria-label="Sign out"
-            className="grid size-9 place-items-center rounded-lg text-ink-soft transition-colors hover:bg-canvas hover:text-broke"
+            className="grid size-9 place-items-center rounded-lg text-ink-soft transition-colors hover:bg-white hover:text-broke"
           >
             <Icon name="logout" className="size-[18px]" />
           </button>
@@ -126,7 +127,7 @@ function Sidebar({ name, email }) {
 
 function MobileTop({ name }) {
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-surface/90 px-4 py-3 backdrop-blur lg:hidden">
+    <header className="glass sticky top-2 z-30 mx-2 mt-2 flex items-center justify-between rounded-2xl px-4 py-2.5 lg:hidden">
       <Link to="/app" className="flex items-center gap-2">
         <CoinMark className="size-7" />
         <span className="font-display font-bold tracking-tight">Promise Keeper</span>
@@ -144,7 +145,7 @@ function MobileTop({ name }) {
 function MobileTabs() {
   const tabs = [NAV[0], NAV[1], { to: '/app/new', label: 'New', icon: 'plus', big: true }, NAV[2], NAV[3]]
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+    <nav className="glass fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-30 rounded-[26px] lg:hidden">
       <div className="grid grid-cols-5">
         {tabs.map((t) =>
           t.big ? (
@@ -208,10 +209,15 @@ export default function AppShell() {
   const name = displayName(session) || 'You'
   const email = session?.user?.email || ''
   return (
-    <div className="min-h-svh bg-canvas">
+    <div className="relative min-h-svh bg-canvas">
+      <div aria-hidden="true" className="aurora pointer-events-none fixed inset-0 overflow-hidden">
+        <span className="-left-[10%] -top-[15%] size-[55vw] bg-cobalt-soft" />
+        <span className="-right-[15%] top-[20%] size-[45vw] bg-sun-soft opacity-80" />
+        <span className="-bottom-[20%] left-[25%] size-[40vw] bg-kept-soft opacity-80" />
+      </div>
       <Sidebar name={name} email={email} />
       <MobileTop name={name} />
-      <div className="pb-28 lg:pb-0 lg:pl-64">
+      <div className="relative pb-32 lg:pb-0 lg:pl-[16.5rem]">
         <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 md:py-10 lg:px-10">
           <PageSwap />
         </main>

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { motion, useScroll, useSpring } from 'motion/react'
 import { Link } from 'react-router'
 import { formatCents } from '../../money'
 import { useActivity, useMyPromises } from '../../app/data'
@@ -40,7 +41,7 @@ export function EventItem({ e, detailed = false }) {
   const d = describe(e)
   return (
     <li>
-      <Link to={`/p/${e.promise.id}`} className="flex gap-3.5 px-5 py-3.5 transition-colors hover:bg-canvas">
+      <Link to={`/p/${e.promise.id}`} className="flex gap-3.5 px-5 py-3.5 transition-colors hover:bg-white/70">
         <span className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl ${d.tone}`}>
           <Icon name={d.icon} className="size-[18px]" strokeWidth={2.1} />
         </span>
@@ -66,6 +67,45 @@ const FILTERS = [
   ['proof', 'Proofs'],
   ['money', 'Money'],
 ]
+
+// Days hang off one line that draws itself down the page as you scroll.
+function Timeline({ groups }) {
+  const ref = useRef(null)
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start 70%', 'end 60%'] })
+  const draw = useSpring(scrollYProgress, { stiffness: 120, damping: 24 })
+  return (
+    <div ref={ref} className="relative space-y-7 pl-9">
+      <span aria-hidden="true" className="absolute bottom-2 left-[11px] top-2 w-[2px] rounded-full bg-ink/[0.07]" />
+      <motion.span
+        aria-hidden="true"
+        style={{ scaleY: draw }}
+        className="absolute bottom-2 left-[11px] top-2 w-[2px] origin-top rounded-full bg-[linear-gradient(to_bottom,#1e3bff,#0e9f72)]"
+      />
+      {groups.map((g, i) => (
+        <motion.section
+          key={g.label}
+          initial={{ opacity: 0, x: 16 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: Math.min(i, 6) * 0.06 }}
+        >
+          <h2 className="relative mb-2.5 flex items-center px-1 font-display text-sm font-bold text-ink">
+            <span aria-hidden="true" className="absolute -left-[33px] grid size-[18px] place-items-center rounded-full bg-white shadow-[0_0_0_4px_rgba(30,59,255,0.12)]">
+              <span className="size-2 rounded-full bg-cobalt" />
+            </span>
+            {g.label}
+          </h2>
+          <Card className="overflow-hidden">
+            <ul className="divide-y divide-ink/[0.06]">
+              {g.items.map((e) => (
+                <EventItem key={e.id} e={e} detailed />
+              ))}
+            </ul>
+          </Card>
+        </motion.section>
+      ))}
+    </div>
+  )
+}
 
 export default function Activity() {
   const { promises, error } = useMyPromises()
@@ -100,16 +140,23 @@ export default function Activity() {
     <div className="space-y-6">
       <PageTitle title="Activity" hint="Every check-in, photo and payment, with what the AI referee said." />
 
-      <div className="flex gap-2">
+      <div className="glass flex w-fit gap-1 rounded-full p-1">
         {FILTERS.map(([k, label]) => (
           <button
             key={k}
             onClick={() => setFilter(k)}
-            className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-              filter === k ? 'bg-ink text-white' : 'border border-line bg-surface text-ink-soft hover:text-ink'
+            className={`relative rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+              filter === k ? 'text-white' : 'text-ink-soft hover:text-ink'
             }`}
           >
-            {label}
+            {filter === k && (
+              <motion.span
+                layoutId="activity-filter"
+                transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                className="absolute inset-0 rounded-full bg-ink"
+              />
+            )}
+            <span className="relative">{label}</span>
           </button>
         ))}
       </div>
@@ -137,18 +184,7 @@ export default function Activity() {
           </EmptyState>
         </Card>
       ) : (
-        groups.map((g) => (
-          <section key={g.label}>
-            <h2 className="mb-2 px-1 text-sm font-semibold text-ink-soft">{g.label}</h2>
-            <Card className="overflow-hidden">
-              <ul className="divide-y divide-line">
-                {g.items.map((e) => (
-                  <EventItem key={e.id} e={e} detailed />
-                ))}
-              </ul>
-            </Card>
-          </section>
-        ))
+        <Timeline groups={groups} />
       )}
     </div>
   )

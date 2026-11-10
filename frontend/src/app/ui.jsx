@@ -65,9 +65,16 @@ export function CoinMark({ className = 'size-8' }) {
   )
 }
 
+// Tells a .spot surface where the cursor is, so its border can glow there.
+export function spotMove(e) {
+  const r = e.currentTarget.getBoundingClientRect()
+  e.currentTarget.style.setProperty('--mx', `${e.clientX - r.left}px`)
+  e.currentTarget.style.setProperty('--my', `${e.clientY - r.top}px`)
+}
+
 export function Card({ className = '', children, ...rest }) {
   return (
-    <div className={`rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(10,18,64,0.04)] ${className}`} {...rest}>
+    <div onPointerMove={spotMove} className={`glass spot rounded-3xl ${className}`} {...rest}>
       {children}
     </div>
   )
@@ -75,7 +82,7 @@ export function Card({ className = '', children, ...rest }) {
 
 export function CardHeader({ title, hint, action }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-4">
+    <div className="flex items-center justify-between gap-4 border-b border-ink/[0.06] px-5 py-4">
       <div>
         <h2 className="font-display text-base font-bold tracking-[-0.01em]">{title}</h2>
         {hint && <p className="mt-0.5 text-sm text-ink-soft">{hint}</p>}
@@ -166,7 +173,7 @@ export function PromiseRow({ p, now, i = 0 }) {
     >
       <Link
         to={`/p/${p.id}`}
-        className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-canvas"
+        className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/70"
       >
         <ProgressRing done={p.done_count} target={p.target_count} tone={ringTone(p)} />
         <div className="min-w-0 flex-1">

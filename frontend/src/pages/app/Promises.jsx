@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { motion } from 'motion/react'
 import { outcomeOf, useMyPromises, useNow } from '../../app/data'
 import { ButtonLink, Card, EmptyState, Icon, PageTitle, PromiseRow, Skeleton } from '../../app/ui'
 
@@ -41,25 +42,32 @@ export default function Promises() {
       />
 
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex gap-1 overflow-x-auto rounded-xl border border-line bg-surface p-1">
+        <div className="glass flex gap-1 overflow-x-auto rounded-2xl p-1">
           {TABS.map(([k, label]) => (
             <button
               key={k}
               onClick={() => setTab(k)}
-              className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors ${
-                tab === k ? 'bg-ink text-white' : 'text-ink-soft hover:text-ink'
+              className={`relative flex items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-semibold transition-colors ${
+                tab === k ? 'text-white' : 'text-ink-soft hover:text-ink'
               }`}
             >
-              {label}
+              {tab === k && (
+                <motion.span
+                  layoutId="promises-tab"
+                  transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                  className="absolute inset-0 rounded-xl bg-ink"
+                />
+              )}
+              <span className="relative">{label}</span>
               {promises && (
-                <span className={`rounded-md px-1.5 text-xs tabular-nums ${tab === k ? 'bg-white/20' : 'bg-canvas'}`}>
+                <span className={`relative rounded-md px-1.5 text-xs tabular-nums ${tab === k ? 'bg-white/20' : 'bg-ink/[0.06]'}`}>
                   {count(k)}
                 </span>
               )}
             </button>
           ))}
         </div>
-        <label className="flex items-center gap-2 rounded-xl border border-line bg-surface px-3.5 py-2.5 focus-within:border-cobalt md:w-72">
+        <label className="glass flex items-center gap-2 rounded-2xl px-3.5 py-2.5 focus-within:ring-4 focus-within:ring-cobalt/15 md:w-72">
           <Icon name="search" className="size-4 text-ink-soft" />
           <input
             value={q}
@@ -105,7 +113,7 @@ export default function Promises() {
                 : 'Finished promises land here after their deadline.'}
           </EmptyState>
         ) : (
-          <ul className="divide-y divide-line">
+          <ul className="divide-y divide-ink/[0.06]">
             {shown.map((p, i) => (
               <PromiseRow key={p.id} p={p} now={now} i={i} />
             ))}

@@ -103,6 +103,12 @@ Plan and schedule: APPROACH.md. Full spec: ~/Desktop/Promise-Keeper-PRD-and-Buil
 - Motion kit in `src/fx/`: `Tilt` + `Depth` (cards lean toward the cursor with a highlight, children float on translateZ),
   `CountUp` (numbers roll), `Magnetic` (main buttons pull toward the cursor). App shell: sliding nav highlight
   (`layoutId`) and a short blur/slide page change. All off for reduced motion and touch.
+- Inside the app (Nov 9): "daylight glass". Slow drifting color blobs behind everything (`.aurora` in `AppShell`),
+  floating glass sidebar and phone tab bar, and every `Card` is `glass spot` (frosted white + a cobalt border glow
+  that follows the cursor; `spotMove` in `ui.jsx`). Wallet = a 3D chrome money card (tilts, sheen, flips to show the
+  breakdown). Activity = a timeline line that draws as you scroll. Tabs/filters use a sliding `layoutId` pill.
+  Overview: the four numbers are a split-flap board (`fx/FlapBoard.jsx`), and "Ideas to try" is a ring of CSS-3D
+  chrome coins you drag to spin (`app/IdeaCoins.jsx`); the front coin's "Start this promise" opens the composer.
 - Avoid: all-caps labels, arrows on buttons, scroll fade-ins on every section.
 - Copy: plain, active, sentence case. Errors say what happened and how to fix it.
 - Always check with screenshots at 1440×900 and 390×844.

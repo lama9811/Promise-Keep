@@ -29,7 +29,7 @@ function ConnectedApps() {
   return (
     <Card className="overflow-hidden">
       <CardHeader title="Connected apps" hint="Connect once and your workouts prove your promises for you." />
-      <div className="divide-y divide-line">
+      <div className="divide-y divide-ink/[0.06]">
         {(conns?.providers || []).map((c) => {
           const info = APP_INFO[c.provider]
           return (
@@ -180,7 +180,7 @@ export default function Account() {
 
       <Card className="overflow-hidden">
         <CardHeader title="Profile" />
-        <div className="divide-y divide-line">
+        <div className="divide-y divide-ink/[0.06]">
           <Row label="Name">{name}</Row>
           <Row label="Email">{email}</Row>
           <Row label="Signed in with">{method}</Row>
@@ -190,7 +190,7 @@ export default function Account() {
 
       <Card className="overflow-hidden">
         <CardHeader title="Payments" />
-        <div className="divide-y divide-line">
+        <div className="divide-y divide-ink/[0.06]">
           <Row label="Mode">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-sun-soft px-2.5 py-1 text-xs font-semibold">
               <span className="size-1.5 rounded-full bg-[#e0a800]" />

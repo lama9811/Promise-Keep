@@ -5,10 +5,10 @@ import { displayName, useAuth } from '../../auth'
 import { formatCents } from '../../money'
 import { setCoin } from '../../three/coinStore'
 import { moneyFrom, outcomeOf, streakFrom, useActivity, useAgent, useMyPromises, useNow, weekFrom } from '../../app/data'
-import { ButtonLink, Card, CardHeader, EASE, Icon, PromiseRow, Skeleton, shortLeft } from '../../app/ui'
+import { ButtonLink, Card, CardHeader, EASE, Icon, PromiseRow, Skeleton, shortLeft, spotMove } from '../../app/ui'
 import { CoinHero } from '../Home'
-import { Depth, Tilt } from '../../fx/Tilt'
-import CountUp from '../../fx/CountUp'
+import FlapText from '../../fx/FlapBoard'
+import IdeaCoins from '../../app/IdeaCoins'
 import { EventItem, ago } from './Activity'
 
 function greeting() {
@@ -109,36 +109,82 @@ function Hero({ first, money, loading }) {
   )
 }
 
-const dollars = (cents) => (v) => formatCents(Math.abs(v - cents) < 1 ? cents : Math.round(v / 100) * 100)
-
-function StatCard({ i, tint, label, icon, iconTone, value, count, note, loading, children }) {
+// The four numbers as one departures board: each value flips into place.
+function Scoreboard({ money, streak, week, loading, streakLoading }) {
+  const cells = [
+    {
+      label: 'On the line',
+      icon: 'lock',
+      tone: 'text-cobalt',
+      value: formatCents(money.onTheLine),
+      note: `${money.active} active promise${money.active === 1 ? '' : 's'}`,
+      busy: loading,
+    },
+    {
+      label: 'Back to you',
+      icon: 'wallet',
+      tone: 'text-kept',
+      value: formatCents(money.returned),
+      note: `From ${money.kept} kept promise${money.kept === 1 ? '' : 's'}`,
+      busy: loading,
+    },
+    {
+      label: 'Kept rate',
+      icon: 'check',
+      tone: 'text-kept',
+      value: money.keptRate === null ? 'New' : `${money.keptRate}%`,
+      note:
+        money.keptRate === null ? (
+          'Shows after your first deadline'
+        ) : (
+          <span className="flex items-center gap-2">
+            <MiniRing pct={money.keptRate} />
+            {money.kept} of {money.kept + money.missed} kept
+          </span>
+        ),
+      busy: loading,
+    },
+    {
+      label: 'Streak',
+      icon: 'flame',
+      tone: 'text-[#e0a800]',
+      value: String(streak),
+      unit: streak === 1 ? 'day' : 'days',
+      note: <StreakDots week={week} />,
+      busy: streakLoading,
+    },
+  ]
   return (
-    <Tilt
-      max={9}
+    <motion.section
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: EASE, delay: 0.1 + 0.06 * i }}
-      className={`overflow-hidden rounded-2xl p-5 ${tint}`}
+      transition={{ duration: 0.6, ease: EASE, delay: 0.1 }}
+      onPointerMove={spotMove}
+      className="glass spot grid grid-cols-2 overflow-hidden rounded-3xl xl:grid-cols-4"
     >
-      <Depth z={18} className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-ink/70">{label}</p>
-        <span className={`grid size-9 place-items-center rounded-xl bg-white shadow-sm ${iconTone}`}>
-          <Icon name={icon} className="size-[18px]" strokeWidth={2} />
-        </span>
-      </Depth>
-      {loading ? (
-        <Skeleton className="mt-3 h-10 w-24 bg-white/60" />
-      ) : (
-        <Depth z={40}>
-          <p className="mt-2 font-display text-[2.4rem] font-extrabold leading-none tracking-[-0.04em] tabular-nums">
-            {count ? <CountUp value={count.to} format={count.format} /> : value}
+      {cells.map((c, i) => (
+        <div
+          key={c.label}
+          className={`relative p-5 md:p-6 ${i % 2 ? 'border-l border-ink/[0.06]' : ''} ${i > 1 ? 'border-t border-ink/[0.06] xl:border-t-0' : ''} ${i === 2 ? 'xl:border-l' : ''}`}
+        >
+          <p className="flex items-center gap-2 text-sm font-semibold text-ink/65">
+            <Icon name={c.icon} className={`size-4 ${c.tone}`} strokeWidth={2.2} />
+            {c.label}
           </p>
-        </Depth>
-      )}
-      <Depth z={22} className="mt-3 min-h-6 text-sm text-ink/65">
-        {children || note}
-      </Depth>
-    </Tilt>
+          <div className="mt-3 flex min-h-[3.2rem] items-end gap-2">
+            {c.busy ? (
+              <Skeleton className="h-12 w-28" />
+            ) : (
+              <>
+                <FlapText text={c.value} start={200 + i * 180} className="font-display text-[2.1rem] font-extrabold tracking-tight md:text-[2.4rem]" />
+                {c.unit && <span className="pb-1 font-display text-lg font-bold text-ink/60">{c.unit}</span>}
+              </>
+            )}
+          </div>
+          <div className="mt-3 min-h-6 text-sm text-ink/60">{c.note}</div>
+        </div>
+      ))}
+    </motion.section>
   )
 }
 
@@ -221,47 +267,6 @@ function GetStarted({ promises, events }) {
         ))}
       </ol>
     </Card>
-  )
-}
-
-function Ideas() {
-  const navigate = useNavigate()
-  return (
-    <section>
-      <div className="mb-3 px-1">
-        <h2 className="font-display text-lg font-bold">Ideas to try</h2>
-        <p className="text-sm text-ink-soft">Tap one and the AI drafts the deal for you.</p>
-      </div>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-        {IDEAS.map((idea, i) => (
-          <Tilt
-            as="button"
-            max={10}
-            key={idea.title}
-            onClick={() => navigate('/app/new', { state: { text: idea.text, go: true } })}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: EASE, delay: 0.2 + 0.05 * i }}
-            whileTap={{ scale: 0.98 }}
-            className={`group flex flex-col items-start overflow-hidden rounded-2xl p-4 text-left ${idea.tint}`}
-          >
-            <Depth z={36}>
-              <span className={`grid size-10 place-items-center rounded-xl bg-white shadow-sm transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110 ${idea.ink}`}>
-                <Icon name={idea.icon} className="size-5" />
-              </span>
-            </Depth>
-            <Depth z={20}>
-              <p className="mt-4 font-display text-[17px] font-bold leading-tight">{idea.title}</p>
-              <p className="mt-1 text-sm text-ink/60">{idea.proof}</p>
-            </Depth>
-            <Depth z={30}>
-              <span className="mt-3 inline-block rounded-full bg-white px-2.5 py-1 text-xs font-bold shadow-sm">{idea.stake} on the line</span>
-            </Depth>
-            <span aria-hidden="true" className="absolute -bottom-6 -right-6 size-20 rounded-full bg-white/40 transition-transform duration-500 group-hover:scale-150" />
-          </Tilt>
-        ))}
-      </div>
-    </section>
   )
 }
 
@@ -433,6 +438,7 @@ function HowProofWorks() {
 }
 
 export default function Overview() {
+  const navigate = useNavigate()
   const { session } = useAuth()
   const first = displayName(session).split(' ')[0]
   const { promises, error } = useMyPromises()
@@ -464,58 +470,7 @@ export default function Overview() {
 
       {error && <p className="rounded-xl bg-broke-soft px-4 py-3 text-sm text-broke">{error}</p>}
 
-      <div className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
-        <StatCard
-          i={0}
-          tint="bg-cobalt-soft"
-          label="On the line"
-          icon="lock"
-          iconTone="text-cobalt"
-          loading={loading}
-          count={{ to: money.onTheLine, format: dollars(money.onTheLine) }}
-          note={`${money.active} active promise${money.active === 1 ? '' : 's'}`}
-        />
-        <StatCard
-          i={1}
-          tint="bg-kept-soft"
-          label="Back to you"
-          icon="wallet"
-          iconTone="text-kept"
-          loading={loading}
-          count={{ to: money.returned, format: dollars(money.returned) }}
-          note={`From ${money.kept} kept promise${money.kept === 1 ? '' : 's'}`}
-        />
-        <StatCard
-          i={2}
-          tint="bg-surface border border-line"
-          label="Kept rate"
-          icon="check"
-          iconTone="text-kept"
-          loading={loading}
-          value="New"
-          count={money.keptRate === null ? null : { to: money.keptRate, format: (v) => `${Math.round(v)}%` }}
-        >
-          {money.keptRate === null ? (
-            'Shows after your first deadline'
-          ) : (
-            <span className="flex items-center gap-2">
-              <MiniRing pct={money.keptRate} />
-              {money.kept} of {money.kept + money.missed} kept
-            </span>
-          )}
-        </StatCard>
-        <StatCard
-          i={3}
-          tint="bg-sun-soft"
-          label="Streak"
-          icon="flame"
-          iconTone="text-[#e0a800]"
-          loading={loading || !activity?.loaded}
-          count={{ to: streak, format: (v) => `${Math.round(v)} day${streak === 1 ? '' : 's'}` }}
-        >
-          <StreakDots week={week} />
-        </StatCard>
-      </div>
+      <Scoreboard money={money} streak={streak} week={week} loading={loading} streakLoading={loading || !activity?.loaded} />
 
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         <div className="space-y-6">
@@ -530,7 +485,7 @@ export default function Overview() {
                   </Link>
                 }
               />
-              <ul className="divide-y divide-line">
+              <ul className="divide-y divide-ink/[0.06]">
                 {active.slice(0, 5).map((p, i) => (
                   <PromiseRow key={p.id} p={p} now={now} i={i} />
                 ))}
@@ -548,7 +503,7 @@ export default function Overview() {
             showStarter && <GetStarted promises={promises} events={events} />
           )}
 
-          <Ideas />
+          <IdeaCoins ideas={IDEAS} onStart={(text) => navigate('/app/new', { state: { text, go: true } })} />
 
           {events.length > 0 && (
             <Card className="overflow-hidden">
@@ -560,7 +515,7 @@ export default function Overview() {
                   </Link>
                 }
               />
-              <ul className="divide-y divide-line">
+              <ul className="divide-y divide-ink/[0.06]">
                 {events.slice(0, 5).map((e) => (
                   <EventItem key={e.id} e={e} />
                 ))}
