@@ -97,9 +97,12 @@ Plan and schedule: APPROACH.md. Full spec: ~/Desktop/Promise-Keeper-PRD-and-Buil
 - Fonts: Bricolage Grotesque (display), Hanken Grotesk (body), from @fontsource.
 - Hero: the 3D chrome coin, with a soft sky and sun glow behind it. The 3D environment stays
   dark inside (`#26305e`) so the chrome has contrast on a light page.
-- "How it works" = `components/HowItWorks.jsx`: sticky stacked motion cards (sky / mint /
-  sun tints) that shrink as the next one stacks over them, tilt toward the cursor, and
-  carry small live illustrations with depth (translateZ). Reuse this card style for new sections.
+- Landing (`pages/Home.jsx`, Nov 9): one coin pinned beside the story (top of screen on phones). Scrolling acts it out:
+  hero = idle, "Lock it in" = ring clamps ($20), "Prove it" = ring segments light one per scroll step, "Settle up" =
+  flips and glows mint, with a live caption under the coin. Step text and illustrations come from `components/HowItWorks.jsx`.
+- Motion kit in `src/fx/`: `Tilt` + `Depth` (cards lean toward the cursor with a highlight, children float on translateZ),
+  `CountUp` (numbers roll), `Magnetic` (main buttons pull toward the cursor). App shell: sliding nav highlight
+  (`layoutId`) and a short blur/slide page change. All off for reduced motion and touch.
 - Avoid: all-caps labels, arrows on buttons, scroll fade-ins on every section.
 - Copy: plain, active, sentence case. Errors say what happened and how to fix it.
 - Always check with screenshots at 1440×900 and 390×844.

@@ -1,6 +1,7 @@
 // The frame around every signed-in screen: a sidebar on desktop,
 // a top bar and bottom tabs on phones.
-import { Link, NavLink, Outlet, useNavigate } from 'react-router'
+import { Link, NavLink, useLocation, useNavigate, useOutlet } from 'react-router'
+import { AnimatePresence, motion } from 'motion/react'
 import { displayName, signOut, useAuth } from '../auth'
 import { clearAppCache } from './data'
 import { CoinMark, Icon } from './ui'
@@ -56,8 +57,8 @@ export function useSignOut() {
 function Sidebar({ name, email }) {
   const out = useSignOut()
   const item = ({ isActive }) =>
-    `flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-medium transition-colors ${
-      isActive ? 'bg-cobalt-soft text-cobalt' : 'text-ink-soft hover:bg-canvas hover:text-ink'
+    `relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-medium transition-colors ${
+      isActive ? 'text-cobalt' : 'text-ink-soft hover:bg-canvas hover:text-ink'
     }`
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-surface lg:flex">
@@ -79,8 +80,19 @@ function Sidebar({ name, email }) {
       <nav className="mt-6 flex flex-col gap-1 px-4">
         {NAV.map((n) => (
           <NavLink key={n.to} to={n.to} end={n.end} className={item}>
-            <Icon name={n.icon} />
-            {n.label}
+            {({ isActive }) => (
+              <>
+                {isActive && (
+                  <motion.span
+                    layoutId="nav-pill"
+                    transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                    className="absolute inset-0 rounded-xl bg-cobalt-soft"
+                  />
+                )}
+                <Icon name={n.icon} className="relative size-5" />
+                <span className="relative">{n.label}</span>
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
@@ -147,16 +159,47 @@ function MobileTabs() {
               to={t.to}
               end={t.end}
               className={({ isActive }) =>
-                `flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium ${isActive ? 'text-cobalt' : 'text-ink-soft'}`
+                `relative flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium ${isActive ? 'text-cobalt' : 'text-ink-soft'}`
               }
             >
-              <Icon name={t.icon} className="size-[22px]" />
-              {t.label}
+              {({ isActive }) => (
+                <>
+                  {isActive && (
+                    <motion.span
+                      layoutId="tab-dot"
+                      transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                      className="absolute top-0 h-[3px] w-8 rounded-full bg-cobalt"
+                    />
+                  )}
+                  <Icon name={t.icon} className="size-[22px]" />
+                  {t.label}
+                </>
+              )}
             </NavLink>
           ),
         )}
       </div>
     </nav>
+  )
+}
+
+// Each screen eases in from slightly below and out of focus, so moving
+// between tabs feels like one surface changing rather than a page reload.
+function PageSwap() {
+  const { pathname } = useLocation()
+  const outlet = useOutlet()
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={pathname}
+        initial={{ opacity: 0, y: 14, filter: 'blur(6px)' }}
+        animate={{ opacity: 1, y: 0, filter: 'blur(0px)', transitionEnd: { filter: 'none' } }}
+        exit={{ opacity: 0, y: -8, filter: 'blur(4px)' }}
+        transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+      >
+        {outlet}
+      </motion.div>
+    </AnimatePresence>
   )
 }
 
@@ -170,7 +213,7 @@ export default function AppShell() {
       <MobileTop name={name} />
       <div className="pb-28 lg:pb-0 lg:pl-64">
         <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 md:py-10 lg:px-10">
-          <Outlet />
+          <PageSwap />
         </main>
       </div>
       <MobileTabs />

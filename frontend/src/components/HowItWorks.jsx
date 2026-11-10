@@ -1,11 +1,12 @@
-import { useRef } from 'react'
-import { motion, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform } from 'motion/react'
+// The three steps of a promise and the small 3D scenes that illustrate them.
+// Home.jsx lays them out next to the pinned coin.
+import { motion } from 'motion/react'
 
 const EASE = [0.16, 1, 0.3, 1]
 
 // ---------- Little live illustrations, one per step ----------
 
-function LockIllustration() {
+export function LockIllustration() {
   return (
     <div className="relative w-full max-w-sm" style={{ transformStyle: 'preserve-3d' }}>
       <motion.div
@@ -39,7 +40,7 @@ function LockIllustration() {
   )
 }
 
-function ProveIllustration() {
+export function ProveIllustration() {
   return (
     <div className="relative mx-auto w-40 md:w-56" style={{ transformStyle: 'preserve-3d' }}>
       <div
@@ -104,7 +105,7 @@ function Receipt({ tone, title, line, id, z, delay }) {
   )
 }
 
-function SettleIllustration() {
+export function SettleIllustration() {
   return (
     <div className="w-full max-w-sm space-y-3" style={{ transformStyle: 'preserve-3d' }}>
       <Receipt tone="kept" title="You kept it" line="$20.00 refunded to you" id="3Y741303PN1111611" z={40} delay={0} />
@@ -115,7 +116,7 @@ function SettleIllustration() {
   )
 }
 
-const STEPS = [
+export const STEPS = [
   {
     title: 'Lock it in',
     body: 'Type your fitness goal in plain words, like “10,000 steps a day” or “gym 4 times this week”. The AI turns it into a clear deal, and PayPal holds your stake.',
@@ -135,90 +136,3 @@ const STEPS = [
     Art: SettleIllustration,
   },
 ]
-
-// ---------- A card that tilts toward the cursor and shrinks as the next one stacks on it ----------
-
-function MotionCard({ step, index, total, progress }) {
-  const reduced = useReducedMotion()
-  const rx = useMotionValue(0)
-  const ry = useMotionValue(0)
-  const rotateX = useSpring(rx, { stiffness: 160, damping: 18 })
-  const rotateY = useSpring(ry, { stiffness: 160, damping: 18 })
-
-  // Each earlier card shrinks a little more as later cards slide over it.
-  const start = index / total
-  const scale = useTransform(progress, [start, 1], [1, reduced ? 1 : 1 - (total - 1 - index) * 0.05])
-
-  const onMove = (e) => {
-    if (reduced || e.pointerType === 'touch') return
-    const r = e.currentTarget.getBoundingClientRect()
-    ry.set(((e.clientX - r.left) / r.width - 0.5) * 6)
-    rx.set(-((e.clientY - r.top) / r.height - 0.5) * 5)
-  }
-  const onLeave = () => {
-    rx.set(0)
-    ry.set(0)
-  }
-
-  const { Art } = step
-  return (
-    <div className="sticky md:h-[64svh] md:min-h-[500px]" style={{ top: `calc(9svh + ${index * 26}px)` }}>
-      <motion.article
-        onPointerMove={onMove}
-        onPointerLeave={onLeave}
-        style={{ scale, rotateX, rotateY, transformPerspective: 1400, transformStyle: 'preserve-3d' }}
-        className={`grid origin-top gap-10 overflow-hidden rounded-[40px] ${step.tint} px-7 pb-12 pt-8 md:h-full md:grid-cols-[1fr_1.1fr] md:items-center md:p-14`}
-      >
-        <div style={{ transform: 'translateZ(30px)' }}>
-          <span className="font-display text-7xl font-extrabold text-ink/15 md:text-8xl" aria-hidden="true">
-            {index + 1}
-          </span>
-          <h3 className="mt-2 font-display text-4xl font-extrabold tracking-[-0.03em] md:text-5xl">{step.title}</h3>
-          <p className="mt-4 max-w-md text-lg leading-relaxed text-ink-soft">{step.body}</p>
-        </div>
-        <div className="flex items-center justify-center" style={{ transformStyle: 'preserve-3d' }}>
-          <Art />
-        </div>
-      </motion.article>
-    </div>
-  )
-}
-
-export default function HowItWorks() {
-  const stack = useRef(null)
-  const { scrollYProgress } = useScroll({ target: stack, offset: ['start start', 'end end'] })
-
-  return (
-    <section id="how" className="bg-canvas">
-      <div className="mx-auto max-w-7xl px-6 pt-28 md:px-10 md:pt-36">
-        <h2 className="max-w-3xl font-display text-[clamp(2.25rem,5vw,4.25rem)] font-extrabold leading-[0.95] tracking-[-0.03em] text-balance">
-          No honor system.
-          <br />
-          A referee that checks.
-        </h2>
-        <p className="mt-5 max-w-xl text-lg leading-relaxed text-ink-soft">
-          Three steps from a promise to money moving. Nothing here runs on trust.
-        </p>
-
-        <ol ref={stack} className="relative mt-14 space-y-10 pb-[12svh]">
-          {STEPS.map((step, i) => (
-            <li key={step.title}>
-              <MotionCard step={step} index={i} total={STEPS.length} progress={scrollYProgress} />
-            </li>
-          ))}
-        </ol>
-
-        <p className="max-w-2xl pb-24 text-lg leading-relaxed text-ink-soft">
-          What it can't stop: fake-GPS apps, or sitting in the gym for 30 minutes without lifting anything. That's why
-          your friend gets the final say on any proof the AI isn't sure about.
-        </p>
-      </div>
-      <footer className="border-t border-line">
-        <p className="mx-auto max-w-7xl px-6 py-8 text-sm text-ink-soft md:px-10">
-          Built with PayPal and Gemini for the PayPal + AI hackathon. Payments run in the PayPal sandbox, so no real
-          money moves.
-        </p>
-      </footer>
-    </section>
-  )
-}

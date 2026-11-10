@@ -7,6 +7,8 @@ import { setCoin } from '../../three/coinStore'
 import { moneyFrom, outcomeOf, streakFrom, useActivity, useAgent, useMyPromises, useNow, weekFrom } from '../../app/data'
 import { ButtonLink, Card, CardHeader, EASE, Icon, PromiseRow, Skeleton, shortLeft } from '../../app/ui'
 import { CoinHero } from '../Home'
+import { Depth, Tilt } from '../../fx/Tilt'
+import CountUp from '../../fx/CountUp'
 import { EventItem, ago } from './Activity'
 
 function greeting() {
@@ -107,28 +109,36 @@ function Hero({ first, money, loading }) {
   )
 }
 
-function StatCard({ i, tint, label, icon, iconTone, value, note, loading, children }) {
+const dollars = (cents) => (v) => formatCents(Math.abs(v - cents) < 1 ? cents : Math.round(v / 100) * 100)
+
+function StatCard({ i, tint, label, icon, iconTone, value, count, note, loading, children }) {
   return (
-    <motion.div
+    <Tilt
+      max={9}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: EASE, delay: 0.1 + 0.06 * i }}
-      whileHover={{ y: -3 }}
-      className={`relative overflow-hidden rounded-2xl p-5 ${tint}`}
+      className={`overflow-hidden rounded-2xl p-5 ${tint}`}
     >
-      <div className="flex items-center justify-between">
+      <Depth z={18} className="flex items-center justify-between">
         <p className="text-sm font-semibold text-ink/70">{label}</p>
         <span className={`grid size-9 place-items-center rounded-xl bg-white shadow-sm ${iconTone}`}>
           <Icon name={icon} className="size-[18px]" strokeWidth={2} />
         </span>
-      </div>
+      </Depth>
       {loading ? (
         <Skeleton className="mt-3 h-10 w-24 bg-white/60" />
       ) : (
-        <p className="mt-2 font-display text-[2.4rem] font-extrabold leading-none tracking-[-0.04em] tabular-nums">{value}</p>
+        <Depth z={40}>
+          <p className="mt-2 font-display text-[2.4rem] font-extrabold leading-none tracking-[-0.04em] tabular-nums">
+            {count ? <CountUp value={count.to} format={count.format} /> : value}
+          </p>
+        </Depth>
       )}
-      <div className="mt-3 min-h-6 text-sm text-ink/65">{children || note}</div>
-    </motion.div>
+      <Depth z={22} className="mt-3 min-h-6 text-sm text-ink/65">
+        {children || note}
+      </Depth>
+    </Tilt>
   )
 }
 
@@ -224,24 +234,31 @@ function Ideas() {
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         {IDEAS.map((idea, i) => (
-          <motion.button
+          <Tilt
+            as="button"
+            max={10}
             key={idea.title}
             onClick={() => navigate('/app/new', { state: { text: idea.text, go: true } })}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: EASE, delay: 0.2 + 0.05 * i }}
-            whileHover={{ y: -4, rotate: i % 2 ? 0.6 : -0.6 }}
             whileTap={{ scale: 0.98 }}
-            className={`group relative flex flex-col items-start overflow-hidden rounded-2xl p-4 text-left ${idea.tint}`}
+            className={`group flex flex-col items-start overflow-hidden rounded-2xl p-4 text-left ${idea.tint}`}
           >
-            <span className={`grid size-10 place-items-center rounded-xl bg-white shadow-sm ${idea.ink}`}>
-              <Icon name={idea.icon} className="size-5" />
-            </span>
-            <p className="mt-4 font-display text-[17px] font-bold leading-tight">{idea.title}</p>
-            <p className="mt-1 text-sm text-ink/60">{idea.proof}</p>
-            <span className="mt-3 rounded-full bg-white px-2.5 py-1 text-xs font-bold shadow-sm">{idea.stake} on the line</span>
+            <Depth z={36}>
+              <span className={`grid size-10 place-items-center rounded-xl bg-white shadow-sm transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110 ${idea.ink}`}>
+                <Icon name={idea.icon} className="size-5" />
+              </span>
+            </Depth>
+            <Depth z={20}>
+              <p className="mt-4 font-display text-[17px] font-bold leading-tight">{idea.title}</p>
+              <p className="mt-1 text-sm text-ink/60">{idea.proof}</p>
+            </Depth>
+            <Depth z={30}>
+              <span className="mt-3 inline-block rounded-full bg-white px-2.5 py-1 text-xs font-bold shadow-sm">{idea.stake} on the line</span>
+            </Depth>
             <span aria-hidden="true" className="absolute -bottom-6 -right-6 size-20 rounded-full bg-white/40 transition-transform duration-500 group-hover:scale-150" />
-          </motion.button>
+          </Tilt>
         ))}
       </div>
     </section>
@@ -455,7 +472,7 @@ export default function Overview() {
           icon="lock"
           iconTone="text-cobalt"
           loading={loading}
-          value={formatCents(money.onTheLine)}
+          count={{ to: money.onTheLine, format: dollars(money.onTheLine) }}
           note={`${money.active} active promise${money.active === 1 ? '' : 's'}`}
         />
         <StatCard
@@ -465,7 +482,7 @@ export default function Overview() {
           icon="wallet"
           iconTone="text-kept"
           loading={loading}
-          value={formatCents(money.returned)}
+          count={{ to: money.returned, format: dollars(money.returned) }}
           note={`From ${money.kept} kept promise${money.kept === 1 ? '' : 's'}`}
         />
         <StatCard
@@ -475,7 +492,8 @@ export default function Overview() {
           icon="check"
           iconTone="text-kept"
           loading={loading}
-          value={money.keptRate === null ? 'New' : `${money.keptRate}%`}
+          value="New"
+          count={money.keptRate === null ? null : { to: money.keptRate, format: (v) => `${Math.round(v)}%` }}
         >
           {money.keptRate === null ? (
             'Shows after your first deadline'
@@ -493,7 +511,7 @@ export default function Overview() {
           icon="flame"
           iconTone="text-[#e0a800]"
           loading={loading || !activity?.loaded}
-          value={`${streak} day${streak === 1 ? '' : 's'}`}
+          count={{ to: streak, format: (v) => `${Math.round(v)} day${streak === 1 ? '' : 's'}` }}
         >
           <StreakDots week={week} />
         </StatCard>
