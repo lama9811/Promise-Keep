@@ -27,7 +27,17 @@ function describe(e) {
   if (e.type === 'lost')
     return { icon: 'x', tone: 'bg-broke-soft text-broke', title: `Missed it. ${formatCents(p.stake_cents)} was paid out`, tag: null }
   const pr = e.proof
-  const kind = pr.kind === 'checkin' ? 'Gym check-in' : pr.kind === 'photo' ? 'Photo proof' : pr.kind === 'quiz' ? 'Quiz' : 'Friend check'
+  const KIND = {
+    checkin: 'Gym check-in',
+    photo: 'Photo proof',
+    screenshot: 'Screenshot',
+    strava: 'Strava activity',
+    whoop: 'WHOOP workout',
+    health: 'Apple Health',
+    quiz: 'Quiz',
+    friend: 'Friend check',
+  }
+  const kind = KIND[pr.kind] || 'Proof'
   const decision = pr.referee_decision
   const passed = decision ? decision === 'approve' : pr.ai_verdict === 'pass'
   if (pr.counted || passed)

@@ -1,6 +1,10 @@
 # Promise Keeper
 
+![Promise Keeper: your word, now with money on it](docs/screenshots/banner.jpg)
+
 **Your word, now with money on it.**
+
+**Live app:** https://promise-keep.vercel.app (click *Try the demo account* on the sign-in page)
 
 Promise Keeper lets you bet real money on your own fitness goals. Write a promise the way you'd text a friend,
 lock in a stake with PayPal, and let your workouts prove it. At the deadline an AI agent settles up on its own:
@@ -27,6 +31,34 @@ money moves.
 3. **Settle up.** When the deadline passes, the **promise agent** (Claude with tool use) looks at the facts,
    verifies each stake with PayPal, refunds the people who kept their promise, sends the missed stakes to the
    friend through **PayPal Payouts**, and writes each person a short note explaining what happened.
+
+## Screenshots
+
+**Landing page.** The 3D chrome coin acts out each step as you scroll.
+
+![Landing page](docs/screenshots/landing.jpg)
+![The coin story: proofs light up the ring](docs/screenshots/coin-story.jpg)
+
+**Write a promise in plain words.** Claude turns it into a clear deal you can edit, then you lock in the stake with PayPal.
+
+![Claude turns a sentence into a deal](docs/screenshots/deal.jpg)
+
+**Dashboard.** What's on the line, your kept rate and streak, active promises with live countdowns, and the promise agent's log.
+
+![Dashboard](docs/screenshots/dashboard.jpg)
+
+**Prove it.** Strava and WHOOP sync on their own, or upload a screenshot that Claude reads and date-checks.
+
+![A promise with one run counted](docs/screenshots/promise.jpg)
+
+**Wallet and activity.** Every dollar, where it is now, and what the AI referee said about each proof.
+
+![Wallet with the 3D money card](docs/screenshots/wallet.jpg)
+![Activity timeline](docs/screenshots/activity.jpg)
+
+**On your phone.**
+
+<img src="docs/screenshots/phone.jpg" alt="Dashboard on a phone" width="300">
 
 ## Money rules (enforced in code, not by the AI)
 
