@@ -4,6 +4,7 @@ httpx
 python-dotenv
 supabase
 google-genai
+anthropic
 pillow
 imagehash
 python-multipart

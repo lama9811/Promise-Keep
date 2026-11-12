@@ -139,3 +139,10 @@ def client(fake_db, fake_paypal, fake_auth):
 @pytest.fixture
 def anon(fake_db, fake_paypal, fake_auth):
     return TestClient(main.app)
+
+
+@pytest.fixture(autouse=True)
+def no_real_claude(monkeypatch):
+    """Tests never call the real Claude API; tests that want Claude fake it."""
+    import config
+    monkeypatch.setattr(config, "ANTHROPIC_API_KEY", "")

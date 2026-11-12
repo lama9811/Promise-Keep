@@ -1,17 +1,18 @@
 """The promise agent: settles pots on its own once their deadline passes.
 
-Gemini runs the settlement through function calls (look at the facts, check a
-stake with PayPal, refund a winner, send the payouts, finish with a note for
-each person). The tools live in settle.py and enforce every money rule, so the
-model can choose the order and the words but never who gets paid or how much.
-If Gemini is busy or stops early, settle.finish_by_code completes the same
-steps, so a stake is never left in limbo.
+Claude (or Gemini, when no Claude key is set) runs the settlement through tool
+calls (look at the facts, check a stake with PayPal, refund a winner, send the
+payouts, finish with a note for each person). The tools live in settle.py and
+enforce every money rule, so the model can choose the order and the words but
+never who gets paid or how much. If the model is down or stops early,
+settle.finish_by_code completes the same steps, so a stake is never left in limbo.
 """
 import json
 import logging
 import threading
 from datetime import datetime, timezone
 
+import anthropic
 from google.genai import errors, types
 
 import ai
@@ -85,6 +86,41 @@ TOOLS = [
 ]
 
 
+_ID = {"type": "object", "properties": {"promise_id": {"type": "string"}}, "required": ["promise_id"], "additionalProperties": False}
+_NONE = {"type": "object", "properties": {}, "additionalProperties": False}
+
+# The same five tools, in Claude's format.
+CLAUDE_TOOLS = [
+    {"name": "get_facts", "description": "The pot, each person's proofs, who kept their promise, the money plan and the steps left.", "input_schema": _NONE},
+    {"name": "verify_stake", "description": "Ask PayPal (via the PayPal agent toolkit) whether this person's stake was really captured.", "input_schema": _ID},
+    {"name": "refund_stake", "description": "Refund the full stake to someone who kept their promise, to the PayPal account that paid.", "input_schema": _ID},
+    {"name": "send_payouts", "description": "Send the money from missed promises, as set in the money plan, in one PayPal Payouts batch.", "input_schema": _NONE},
+    {
+        "name": "finish",
+        "description": "Close the pot once refunds and payouts are done. Include a note for every person.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "summary": {"type": "string", "description": "Two or three sentences about how the pot went."},
+                "notes": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {"promise_id": {"type": "string"}, "note": {"type": "string"}},
+                        "required": ["promise_id", "note"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            "required": ["summary", "notes"],
+            "additionalProperties": False,
+        },
+    },
+]
+for _t in CLAUDE_TOOLS:
+    _t["strict"] = True
+
+
 def _call(s: settle.Session, name: str, args: dict) -> str:
     if name == "get_facts":
         return json.dumps(s.facts())
@@ -121,7 +157,58 @@ def _generate(contents: list) -> types.GenerateContentResponse:
     raise ai.AIError(f"Gemini unavailable: {last}")
 
 
+def _claude_turn(messages: list):
+    return ai.claude().messages.create(
+        model=config.CLAUDE_MODEL,
+        max_tokens=16000,
+        system=INSTRUCTIONS,
+        tools=CLAUDE_TOOLS,
+        messages=messages,
+    )
+
+
+def run_with_claude(s: settle.Session) -> bool:
+    """Let Claude drive the settlement. True if it reached a successful finish."""
+    messages: list = [{"role": "user", "content": "Settle this pot now."}]
+    for _ in range(MAX_STEPS):
+        resp = _claude_turn(messages)
+        calls = [b for b in resp.content if b.type == "tool_use"]
+        if not calls:
+            return False  # stopped talking without finishing; the code backstop takes over
+        messages.append({"role": "assistant", "content": resp.content})
+        results = []
+        finished = False
+        for c in calls:
+            is_error = False
+            try:
+                result = _call(s, c.name, dict(c.input or {}))
+                finished = finished or (c.name == "finish")
+            except settle.ToolError as e:
+                result, is_error = f"Refused: {e}", True
+            except Exception:
+                log.exception("agent tool %s failed", c.name)
+                result, is_error = "That step failed on our side. Move on; it will be retried.", True
+            results.append({"type": "tool_result", "tool_use_id": c.id, "content": result, "is_error": is_error})
+        messages.append({"role": "user", "content": results})
+        if finished:
+            return True
+    return False
+
+
 def run_with_model(s: settle.Session) -> bool:
+    """Let the model drive the settlement: Claude first, Gemini if Claude is unavailable."""
+    if config.ANTHROPIC_API_KEY:
+        try:
+            return run_with_claude(s)
+        except anthropic.APIError as e:
+            log.warning("Claude agent unavailable, trying Gemini: %s", e)
+        if not config.GEMINI_API_KEY:
+            return False
+        # Gemini starts the same tools from where Claude left off; every tool is safe to repeat.
+    return run_with_gemini(s)
+
+
+def run_with_gemini(s: settle.Session) -> bool:
     """Let Gemini drive the settlement. True if it reached a successful finish."""
     contents: list = [types.Content(role="user", parts=[types.Part.from_text(text="Settle this pot now.")])]
     for _ in range(MAX_STEPS):

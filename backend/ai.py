@@ -1,13 +1,17 @@
-"""Gemini calls. Every call uses JSON mode with a schema, so replies always parse.
+"""AI calls. Every call asks for JSON that matches a pydantic schema, so replies always parse.
 
-If the main model is overloaded (503) or rate-limited (429), we back off and
-try the GEMINI_FALLBACK_MODELS in order.
+Claude (ANTHROPIC_API_KEY) answers first. If it is missing, down or declines,
+Gemini answers instead: if the main Gemini model is overloaded (503) or
+rate-limited (429), we back off and try the GEMINI_FALLBACK_MODELS in order.
 """
+import base64
 import json
+import logging
 import time
 from datetime import datetime
 from functools import lru_cache
 
+import anthropic
 from google import genai
 from google.genai import errors, types
 from pydantic import BaseModel, Field
@@ -15,8 +19,37 @@ from pydantic import BaseModel, Field
 import config
 
 
+log = logging.getLogger("promise_keeper.ai")
+
+
 class AIError(Exception):
     pass
+
+
+@lru_cache(maxsize=1)
+def claude() -> anthropic.Anthropic:
+    return anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY, max_retries=2, timeout=90)
+
+
+def claude_json(prompt: str, schema: type[BaseModel], images: list[tuple[bytes, str]] | None = None) -> dict:
+    """Ask Claude for JSON that matches `schema` (structured outputs)."""
+    content: list = [
+        {"type": "image", "source": {"type": "base64", "media_type": m, "data": base64.standard_b64encode(b).decode()}}
+        for b, m in (images or [])
+    ]
+    content.append({"type": "text", "text": prompt})
+    try:
+        resp = claude().messages.parse(
+            model=config.CLAUDE_MODEL,
+            max_tokens=16000,
+            messages=[{"role": "user", "content": content}],
+            output_format=schema,
+        )
+    except anthropic.APIError as e:
+        raise AIError(f"Claude error: {e}") from e
+    if resp.stop_reason == "refusal" or resp.parsed_output is None:
+        raise AIError(f"Claude gave no answer ({resp.stop_reason})")
+    return resp.parsed_output.model_dump()
 
 
 @lru_cache(maxsize=1)
@@ -29,6 +62,17 @@ def _client() -> genai.Client:
 
 def generate_json(prompt: str, schema: type[BaseModel], images: list[tuple[bytes, str]] | None = None) -> dict:
     """Run a prompt (plus optional images as (bytes, mime)) and return parsed JSON."""
+    if config.ANTHROPIC_API_KEY:
+        try:
+            return claude_json(prompt, schema, images)
+        except Exception as e:
+            if not config.GEMINI_API_KEY:
+                raise AIError(str(e)) from e
+            log.warning("Claude failed, using Gemini: %s", e)
+    return gemini_json(prompt, schema, images)
+
+
+def gemini_json(prompt: str, schema: type[BaseModel], images: list[tuple[bytes, str]] | None = None) -> dict:
     parts: list = [types.Part.from_bytes(data=b, mime_type=m) for b, m in (images or [])]
     parts.append(prompt)
     cfg = types.GenerateContentConfig(

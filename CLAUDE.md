@@ -114,6 +114,9 @@ Plan and schedule: APPROACH.md. Full spec: ~/Desktop/Promise-Keeper-PRD-and-Buil
 - Always check with screenshots at 1440×900 and 390×844.
 
 ## Gotchas
+- AI (Nov 12): Claude is the main AI (`ANTHROPIC_API_KEY`, `CLAUDE_MODEL=claude-opus-5-5`). `ai.generate_json` uses
+  structured outputs (`messages.parse`) and falls back to Gemini; the agent runs a Claude tool loop (`run_with_claude`),
+  then Gemini, then `finish_by_code`. Tests blank the Claude key (`conftest.no_real_claude`); `tests/test_claude.py` fakes it.
 - Gemini: pin `api_version="v1beta"` (already in `ai.py`), or JSON mode sometimes fails.
   Model `gemini-3.5-flash`, fallbacks `gemini-3.5-flash-lite`, `gemini-2.5-flash` with backoff. On Nov 6
   the flash models often returned 503 while flash-lite kept answering.
