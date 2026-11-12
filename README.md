@@ -90,6 +90,43 @@ Browser (React)  ──>  FastAPI backend  ──>  PayPal (orders, refunds, pay
    └───────────────────────┘                Strava / WHOOP (workouts)
 ```
 
+## How we use PayPal
+
+Everything runs in the **PayPal sandbox** (free developer environment). PayPal holds every stake and moves every dollar.
+
+| PayPal tool | What it does in Promise Keeper |
+|---|---|
+| **PayPal JavaScript SDK** (PayPal Buttons via `@paypal/react-paypal-js`) | The checkout on the deal screen. The user pays the stake in PayPal's pop-up, with a PayPal login or as a guest with a debit or credit card. |
+| **Orders API v2** (`POST /v2/checkout/orders`) | The backend creates an order for the exact stake, so the amount always comes from the server, never the browser. |
+| **Orders API v2, Capture** (`POST /v2/checkout/orders/{id}/capture`) | Captures the payment after approval. A promise only becomes active when the capture is `COMPLETED`. The payer's PayPal email is saved from the capture, so refunds go back to the account that paid. |
+| **Payments API v2, Refunds** (`POST /v2/payments/captures/{id}/refund`) | Refunds the full stake to people who kept their promise. Each refund sends a unique `PayPal-Request-Id`, so it can never happen twice. |
+| **Payouts API** (`POST /v1/payments/payouts`) | Sends a missed stake to the friend in one batch. Each batch has a unique `sender_batch_id`, so PayPal rejects repeats. |
+| **PayPal Agent Toolkit** (`paypal-agent-toolkit`, `get_order_details`) | Before the AI agent moves any money, it asks PayPal directly whether the stake was really captured for the right amount. No confirmation, no refund or payout. |
+| **OAuth 2.0** (`POST /v1/oauth2/token`) and **sandbox accounts** | Server-to-server authentication with the sandbox app's credentials. Tested with a sandbox business account and personal accounts for a player and a friend. |
+
+Code: [`backend/paypal.py`](backend/paypal.py), [`backend/settle.py`](backend/settle.py), [`frontend/src/components/DealSheet.jsx`](frontend/src/components/DealSheet.jsx).
+
+## How we use AI
+
+**Claude by Anthropic** (model `claude-opus-5-5`, through the Anthropic Python SDK) is the AI in Promise Keeper. Google Gemini is an automatic backup if Claude is unavailable.
+
+| Job | How Claude does it |
+|---|---|
+| **Promise reader** | Structured outputs turn "run 2 miles every day this week or $20 to Alex" into a deal (run 3.2 km, 4 times, by Sunday 11:59 PM, $20 to Alex). Code then checks every value (stake limits, dates, goal ranges). |
+| **Screenshot reader** | Vision plus structured outputs read the distance, steps or minutes and the date from Apple Health, Fitness rings, Strava, Fitbit or gym-app screenshots. Screenshots not from today, edited, or already sent are refused. |
+| **Live photo check** | Vision checks that a gym photo shows the one-time secret word and looks like a gym. |
+| **Promise agent** | Tool use. At each deadline Claude settles the pot with five guarded tools: get the facts, verify the stake (PayPal Agent Toolkit), refund a winner, send the payouts, and finish with a note for each person. Claude picks the order and writes the notes; the tools decide who kept their promise and every amount, so the AI can never pay the wrong person or pay twice. If the AI is down, the same tools finish in code. |
+
+Code: [`backend/ai.py`](backend/ai.py), [`backend/agent.py`](backend/agent.py), [`backend/settle.py`](backend/settle.py).
+
+## Sponsor tools and other technology
+
+- **Render (sponsor):** hosts the Python/FastAPI backend as a web service deployed from this repo. It is the only part of the app that holds secrets (PayPal, Anthropic, Supabase, Strava and WHOOP keys, all as Render environment variables), and it runs every PayPal call and the Claude promise agent.
+- **Vercel:** hosts the React frontend at https://promise-keep.vercel.app.
+- **Supabase:** Postgres database with row-level security, sign-in (email link and Google), and a private storage bucket for proof photos.
+- **Strava API and WHOOP API:** OAuth connections; recorded runs and workouts count as proof automatically.
+- **React Three Fiber / three.js, Motion, Tailwind CSS, Leaflet:** the 3D coin, animations, styling and the gym map.
+
 ## Project layout
 
 ```
@@ -196,3 +233,7 @@ The suite uses a fake database and a fake PayPal, and never calls the real Claud
 - Sitting in the gym without working out still passes the 30-minute check-in.
 - Apple Health has no web login, so Apple data comes from screenshots rather than a direct connection.
   A native iPhone app with HealthKit is the next step.
+
+## License
+
+[MIT](LICENSE)
