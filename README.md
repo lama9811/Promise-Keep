@@ -219,13 +219,17 @@ The suite uses a fake database and a fake PayPal, and never calls the real Claud
 - Then add the Vercel address to `FRONTEND_ORIGINS` / `APP_URL` on Render, to Supabase Auth redirect URLs,
   and to the Strava and WHOOP callback settings.
 
-## Try the demo
+## Testing guide for judges
 
-1. Open the app and click **Try the demo account** on the sign-in page.
-2. Write a promise such as *"run 2 miles 3 days this week or $10 to Alex"* and use a PayPal **sandbox** email for
-   the friend.
-3. Pay the stake with a PayPal sandbox personal account.
-4. Prove it with Strava or a screenshot, or miss it and watch the agent pay your friend at the deadline.
+1. Open **https://promise-keep.vercel.app**. The backend runs on Render's free plan, so the very first load can take up to a minute while it wakes up.
+2. Click **Sign in**, then **Try the demo account**. No password is needed.
+3. Look around: the dashboard, Promises, Activity, Wallet (tap the card to flip it) and Account.
+4. **Make a promise:** click **New promise**, type *"run 2 miles every day this week or $20 to Alex"*, press Enter, and Claude drafts the deal.
+5. **Friend's PayPal email:** `sb-pdq7b53766632@personal.example.com` (a PayPal sandbox account).
+6. **Pay the stake:** click the yellow PayPal button. In the pop-up, choose **Pay with Debit or Credit Card** and use a sandbox test card from PayPal's [credit card generator](https://developer.paypal.com/tools/sandbox/card-testing/) (any future expiry date, any 3-digit CVV, any US address). It's all sandbox money.
+7. **Prove a run:** on the promise page, click **Choose screenshot** and upload one of the sample screenshots in [`docs/testing/`](docs/testing/). Claude reads the distance and date and the promise moves to **1 of 4**.
+   - Each screenshot can only be used once per account, and only one proof counts per promise per day.
+8. **Settling:** when a deadline passes, the promise agent refunds the stake (kept) or pays the friend through PayPal Payouts (missed). Past results are under **Activity** and **Wallet**.
 
 ## What it can't stop (yet)
 
