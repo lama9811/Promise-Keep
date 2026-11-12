@@ -100,7 +100,7 @@ class PromiseIn(BaseModel):
     target_count: int = Field(ge=1, le=30)
     deadline: datetime
     stake_cents: int = Field(ge=deals.MIN_STAKE_CENTS, le=deals.MAX_STAKE_CENTS)
-    recipient: str  # friend's PayPal email, or "charity"
+    recipient: str  # the friend's PayPal email
     summary: str = ""
     goal_value: float | None = None  # 10000 steps, 5 km, 30 minutes; ignored for gym
     gym_lat: float | None = None
@@ -117,10 +117,8 @@ class PromiseIn(BaseModel):
     @classmethod
     def _recipient(cls, v):
         v = v.strip()
-        if v.lower() == "charity":
-            return "charity"
         if not EMAIL_RE.match(v):
-            raise ValueError('recipient must be a PayPal email or "charity"')
+            raise ValueError("recipient must be your friend's PayPal email")
         return v.lower()
 
 

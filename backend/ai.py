@@ -113,7 +113,7 @@ class Deal(BaseModel):
     target_count: int
     deadline: str = Field(description="ISO 8601 date-time with timezone offset")
     stake_usd: float
-    recipient: str = Field(description='name or email of who gets the money, or "charity"')
+    recipient: str = Field(description="the friend's name or email who gets the money, or an empty string")
     summary: str
     needs_clarification: str | None = None
 
@@ -138,7 +138,8 @@ proof_hint (one friendly sentence on what counts, e.g. "Your step count for the 
 target_count (how many times or days; "every day this week" = days left until Sunday including today;
   "4 times a week" = 4; "close my rings every day" = days left until Sunday including today),
 deadline (ISO date-time with the timezone offset; "this week" means this coming Sunday 23:59),
-stake_usd (number, 1 to 100), recipient (name or email, or "charity"),
+stake_usd (number, 1 to 100), recipient (the friend who gets the money if they miss: a name or email;
+  if they named no friend, or said charity, use an empty string),
 summary (one short sentence, e.g. "10,000 steps a day, 7 days").
 If the goal is not about fitness, still pick the closest fitness proof and set needs_clarification to
 "Promise Keeper is for fitness goals. Try steps, a run, a workout or the gym."
@@ -231,8 +232,10 @@ Nike Run Club, WHOOP, or a gym app check-in like Planet Fitness) and return JSON
 - minutes: workout duration in minutes if shown, else null
 - move_calories: the Move ring's active calories for that day (red ring, e.g. "512/500 CAL"), else null
 - exercise_minutes: the Exercise ring's minutes for that day (green ring, e.g. "34/30 MIN"), else null
-- date_shown: the date of the activity as YYYY-MM-DD if a date is visible, else null
-- says_today: true if the screen labels it "Today" or shows today's date
+- date_shown: the date of the activity as YYYY-MM-DD if a date is visible, else null. Look carefully: headers like
+  "Thu, Nov 12", "Nov 12, 2026" or "12 Nov" count (use the current year if none is shown). Do not use the phone's
+  status-bar clock as the date.
+- says_today: true only if the screen itself labels this activity "Today" (or shows today's date)
 - looks_edited: true if numbers look pasted in, fonts or alignment don't match, or values are impossible
 - confidence: 0 to 1
 - reason: one short friendly sentence the user will see

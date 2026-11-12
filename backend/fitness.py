@@ -1,4 +1,4 @@
-"""Fitness proof from any source: Strava, WHOOP, Apple Health (iPhone Shortcut) or a screenshot.
+"""Fitness proof from any source: Strava, WHOOP or a screenshot.
 
 Every source turns into the same thing: "this activity, at this time, showed this
 much" (steps, km or minutes). Code then decides if it counts:

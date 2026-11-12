@@ -34,7 +34,7 @@ FRONTEND_ORIGINS = [
 ]
 
 # ---------- Promise agent ----------
-# Where "charity" stakes go. In the sandbox this is one of your sandbox personal accounts.
+# Only for promises made before Nov 12, when "charity" was still an option. New ones always pay a friend.
 CHARITY_EMAIL = os.getenv("CHARITY_EMAIL", "").strip().lower()
 # How often the agent looks for passed deadlines while the server runs (0 = never; use /agent/run).
 AGENT_INTERVAL_SECONDS = int(os.getenv("AGENT_INTERVAL_SECONDS", "60"))

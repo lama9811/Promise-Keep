@@ -59,14 +59,15 @@ Plan and schedule: APPROACH.md. Full spec: ~/Desktop/Promise-Keeper-PRD-and-Buil
   `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`).
 
 ## Status (update as steps finish)
+- Nov 12 (user decision): a missed stake always goes to a friend (their PayPal email). Charity was removed for new
+  promises; `settle.py` + `CHARITY_EMAIL` still pay out older charity pots so nothing is left in limbo.
 - FITNESS ONLY (user decision, Nov 7; replaces "anything"). Proof types: `gym`, `steps`, `run`, `workout`, each with
   `goal_metric`/`goal_value` (10000 steps, 5 km, 30 min, gym = visit). Sources: Strava + WHOOP (OAuth, `connect.py`),
-  Apple Health via an iPhone Shortcut (`POST /shortcut/steps`, per-user key, only its hash stored), screenshots read by
-  Gemini (`ai.read_fitness_screenshot`), gym check-in + live photo. All counting rules in `fitness.record`: inside the
+  screenshots read by the AI (`ai.read_fitness_screenshot`), gym check-in + live photo. The iPhone Shortcut was
+  removed on Nov 12 (user decision): Apple Fitness and steps are proven by screenshot only. All counting rules in `fitness.record`: inside the
   promise window, reaches the goal, one counted per day, a source id never reused. `migrations/003_fitness.sql`.
   Old proof types (photo/quiz/friend) still load but can't be created.
-- Apple Fitness rings (Nov 8): proof types `exercise` (minutes) and `move` (Move calories), Apple-only (Shortcut via
-  `POST /shortcut/activity` with steps/exercise_minutes/move_calories, or a ring screenshot). `migrations/004_rings.sql`.
+- Apple Fitness rings (Nov 8): proof types `exercise` (minutes) and `move` (Move calories), Apple-only (a ring screenshot). `migrations/004_rings.sql`.
   Strava ignores `manual` (hand-typed) activities. WHOOP app is NOT allowed `read:profile` (don't request it).
 - (Superseded) Promises can be about anything (user decision, Nov 6). `promises.activity` is free text;
   `promises.proof` is how it's proven: `gym` (150 m + 30 min + live-word photo), `photo`

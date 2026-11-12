@@ -1,4 +1,4 @@
-"""Fitness proof: Strava / WHOOP sync, the iPhone Shortcut, screenshots, and the counting rules."""
+"""Fitness proof: Strava / WHOOP sync, screenshots, and the counting rules."""
 import io
 from datetime import datetime, timedelta, timezone
 
@@ -133,33 +133,6 @@ def test_agent_pulls_a_last_minute_workout_before_settling(client, fake_db, fake
     assert fake_db.tables["promises"][p["id"]]["outcome"] == "won"
 
 
-# ---------- iPhone Shortcut ----------
-
-def test_shortcut_sends_today_steps(client, fake_db, fake_paypal, anon):
-    p = active(client, fake_db, fake_paypal, activity="walk", proof="steps", goal_value=10000, target_count=7)
-    key = client.post("/me/shortcut-key").json()["key"]
-    assert key.startswith("pk_")
-    assert client.get("/me/connections").json()["shortcut"] is True
-
-    low = anon.post("/shortcut/steps", json={"steps": 6200}, headers={"X-Shortcut-Key": key}).json()
-    assert low["results"][0]["counted"] is False and "short of 10,000 steps" in low["message"]
-    ok = anon.post("/shortcut/steps", json={"steps": 10432}, headers={"X-Shortcut-Key": key}).json()
-    assert ok["results"][0]["counted"] is True
-    assert db.get("promises", p["id"])  # still there
-    assert client.get(f"/promises/{p['id']}").json()["done_count"] == 1
-
-
-def test_shortcut_rejects_bad_keys_and_old_dates(client, fake_db, fake_paypal, anon):
-    active(client, fake_db, fake_paypal, activity="walk", proof="steps")
-    key = client.post("/me/shortcut-key").json()["key"]
-    assert anon.post("/shortcut/steps", json={"steps": 20000}).status_code == 401
-    assert anon.post("/shortcut/steps", json={"steps": 20000}, headers={"X-Shortcut-Key": "pk_nope"}).status_code == 401
-    old = (NOW - timedelta(days=5)).date().isoformat()
-    assert anon.post("/shortcut/steps", json={"steps": 20000, "date": old}, headers={"X-Shortcut-Key": key}).status_code == 422
-    # A new key replaces the old one.
-    client.post("/me/shortcut-key")
-    assert anon.post("/shortcut/steps", json={"steps": 20000}, headers={"X-Shortcut-Key": key}).status_code == 401
-
 
 # ---------- screenshots ----------
 
@@ -191,6 +164,21 @@ def test_screenshot_with_enough_steps_counts(client, fake_db, fake_paypal, reads
     assert r["promise"]["proofs"][-1]["metric_value"] == 10482
 
 
+def test_screenshot_must_show_todays_date(client, fake_db, fake_paypal, reads):
+    from datetime import datetime, timedelta, timezone
+    p = active(client, fake_db, fake_paypal, activity="walk", proof="steps", goal_value=10000, target_count=7)
+    today = datetime.now(timezone.utc).date()
+    yesterday = (today - timedelta(days=1)).isoformat()
+    reads.update(steps=12000, says_today=False, date_shown=yesterday)
+    r = shot(client, p["id"], 11)
+    assert r["counted"] is False and "Send one from today" in r["reason"]
+    reads.update(date_shown=None)  # no date and no "Today" on screen
+    assert "couldn't see a date" in shot(client, p["id"], 12)["reason"]
+    reads.update(date_shown=today.isoformat())  # today's date, written out
+    r = shot(client, p["id"], 13)
+    assert r["counted"] is True and f"today, {today.strftime('%b')} {today.day}" in r["reason"]
+
+
 def test_screenshot_rules(client, fake_db, fake_paypal, reads):
     p = active(client, fake_db, fake_paypal, activity="walk", proof="steps", goal_value=10000, target_count=7)
     reads.update(steps=4000)
@@ -198,7 +186,7 @@ def test_screenshot_rules(client, fake_db, fake_paypal, reads):
     reads.update(steps=20000, looks_edited=True)
     assert "edited" in shot(client, p["id"], 3)["reason"]
     reads.update(looks_edited=False, says_today=False, date_shown="2026-01-02")
-    assert "from 2026-01-02" in shot(client, p["id"], 4)["reason"]
+    assert "from Jan 2" in shot(client, p["id"], 4)["reason"]
     reads.update(says_today=True, date_shown=None, confidence=0.4)
     assert "couldn't read it clearly" in shot(client, p["id"], 5)["reason"]
     reads.update(confidence=0.95, steps=None)
@@ -242,27 +230,6 @@ def test_strava_ignores_runs_typed_in_by_hand(monkeypatch):
 
 
 # ---------- Apple Fitness rings ----------
-
-def test_shortcut_sends_rings_to_the_right_promises(client, fake_db, fake_paypal, anon):
-    ex = active(client, fake_db, fake_paypal, activity="close my exercise ring", proof="exercise", goal_value=30, target_count=7)
-    mv = active(client, fake_db, fake_paypal, activity="burn 500 move calories", proof="move", goal_value=500, target_count=5)
-    st = active(client, fake_db, fake_paypal, activity="walk", proof="steps", goal_value=10000, target_count=7)
-    key = client.post("/me/shortcut-key").json()["key"]
-
-    r = anon.post("/shortcut/activity", json={"steps": 8000, "exercise_minutes": 41, "move_calories": 380},
-                  headers={"X-Shortcut-Key": key}).json()
-    assert "Got 8,000 steps, 41 exercise min, 380 Move cal." in r["message"]
-    assert len(r["results"]) == 3  # one result per step/ring promise
-    view = lambda p: client.get(f"/promises/{p['id']}").json()
-    assert view(ex)["done_count"] == 1  # 41 >= 30
-    assert view(mv)["done_count"] == 0  # 380 < 500
-    assert view(st)["done_count"] == 0  # 8,000 < 10,000
-    assert "short of 500 Move calories" in view(mv)["proofs"][0]["ai_reason"]
-
-
-def test_shortcut_needs_at_least_one_number(client, fake_db, fake_paypal, anon):
-    key = client.post("/me/shortcut-key").json()["key"]
-    assert anon.post("/shortcut/activity", json={}, headers={"X-Shortcut-Key": key}).status_code == 422
 
 
 def test_exercise_ring_only_counts_apple_data(client, fake_db, fake_paypal):

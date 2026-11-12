@@ -5,13 +5,13 @@ from zoneinfo import ZoneInfo
 # Promise Keeper is about fitness. How a promise gets proven:
 #   gym     - a gym visit: location check + 30 minutes on site + live-word photo,
 #             or a WHOOP workout / gym-app check-in screenshot
-#   steps   - a daily step goal: Apple Health via the iPhone Shortcut, or a screenshot
+#   steps   - a daily step goal: a screenshot (Apple Health, Fitbit, Google Fit...)
 #   run     - a distance goal (run, walk, ride): Strava, or a screenshot of the workout
 #   workout - any workout of at least N minutes: WHOOP, Strava, or a screenshot
-#   exercise- close the Apple Exercise ring (N minutes): Apple Health via the Shortcut, or a screenshot
-#   move    - close the Apple Move ring (N calories): Apple Health via the Shortcut, or a screenshot
+#   exercise- close the Apple Exercise ring (N minutes): a ring screenshot
+#   move    - close the Apple Move ring (N calories): a ring screenshot
 PROOFS = {"gym", "steps", "run", "workout", "exercise", "move"}
-APPLE_ONLY = {"steps", "exercise", "move"}  # proven from Apple Health (Shortcut) or screenshots, not Strava/WHOOP
+APPLE_ONLY = {"steps", "exercise", "move"}  # proven from screenshots, not Strava/WHOOP
 LEGACY_PROOFS = {"photo", "quiz", "friend"}  # older promises still load; new ones can't use them
 
 # What one "time" means, per proof type, and sensible limits.
@@ -25,6 +25,12 @@ MAX_STAKE_CENTS = 10_000
 MAX_ACTIVITY_LEN = 80
 GYM_HINT = "You at your gym, holding up the secret word."
 
+
+
+def _friend(value) -> str:
+    """Missed stakes always go to a friend. "charity" or nothing leaves it blank so the deal sheet asks."""
+    v = str(value or "").strip()
+    return "" if v.lower() in ("charity", "none", "nobody") else v
 
 def clamp_goal(metric: str, value) -> float:
     """Keep the goal inside sane limits; steps and minutes are whole numbers."""
@@ -99,7 +105,7 @@ def normalize_deal(raw: dict, tz: str, now: datetime | None = None) -> dict:
         "target_count": count,
         "deadline": deadline.isoformat() if deadline else None,
         "stake_cents": stake_cents,
-        "recipient": str(raw.get("recipient") or "charity").strip(),
+        "recipient": _friend(raw.get("recipient")),
         "summary": str(raw.get("summary") or "").strip(),
         "needs_clarification": clarification,
     }

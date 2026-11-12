@@ -31,15 +31,14 @@ function toLocalInput(iso) {
 }
 
 export function dealFromParse(d) {
-  const isCharity = d.recipient.toLowerCase() === 'charity'
+  const who = (d.recipient || '').trim()
   return {
     ...d,
     stake_dollars: String(d.stake_cents / 100),
     goal_value: String(d.goal_value ?? GOAL_DEFAULT[d.proof] ?? ''),
     deadline_local: toLocalInput(d.deadline),
-    to_charity: isCharity,
-    friend_name: isCharity || EMAIL_RE.test(d.recipient) ? '' : d.recipient,
-    friend_email: EMAIL_RE.test(d.recipient) ? d.recipient : '',
+    friend_name: EMAIL_RE.test(who) ? '' : who,
+    friend_email: EMAIL_RE.test(who) ? who : '',
   }
 }
 

@@ -70,7 +70,8 @@ def test_missed_promise_pays_the_friend(client, fake_db, fake_paypal):
 
 
 def test_charity_needs_an_account_and_never_loses_money(client, fake_db, fake_paypal, monkeypatch):
-    c = locked_promise(client, fake_db, fake_paypal, recipient="charity")
+    c = locked_promise(client, fake_db, fake_paypal)
+    fake_db.tables["pots"][c["pot_id"]]["recipient"] = "charity"  # a promise from before charity was removed
     monkeypatch.setattr(config, "CHARITY_EMAIL", "")
     assert agent.run_due(use_model=False)["failed"] == 1
     assert not fake_db.tables["pots"][c["pot_id"]].get("settled_at")  # left open, retried later

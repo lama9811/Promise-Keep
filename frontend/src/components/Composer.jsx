@@ -5,8 +5,8 @@ import { kickCoin } from '../three/coinStore'
 const EASE = [0.16, 1, 0.3, 1]
 const EXAMPLES = [
   '10,000 steps every day this week or $20 to Alex',
-  'gym 4 times this week or $25 to charity',
-  'run 5 km 3 times by Sunday or $15 to charity',
+  'gym 4 times this week or $25 to Alex',
+  'run 5 km 3 times by Sunday or $15 to Alex',
 ]
 
 export default function Composer({ text, setText, onSubmit, parsing, error }) {

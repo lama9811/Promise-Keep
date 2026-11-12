@@ -12,6 +12,7 @@ import Promises from './pages/app/Promises'
 import Activity from './pages/app/Activity'
 import Wallet from './pages/app/Wallet'
 import Account from './pages/app/Account'
+import Lab from './lab/Lab'
 import ConnectCallback from './pages/app/ConnectCallback'
 import PromisePage from './pages/PromisePage'
 import NotFound from './pages/NotFound'
@@ -139,6 +140,7 @@ export default function App() {
               <Route path="activity" element={<Activity />} />
               <Route path="wallet" element={<Wallet />} />
               <Route path="account" element={<Account />} />
+              <Route path="lab" element={<Lab />} />
             </Route>
             <Route
               path="/connect/:provider"

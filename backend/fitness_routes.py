@@ -1,14 +1,11 @@
-"""Fitness proof routes: connect Strava / WHOOP, sync workouts, the iPhone Shortcut
+"""Fitness proof routes: connect Strava / WHOOP, sync workouts
 for Apple Health steps, and screenshot uploads read by Gemini."""
-import hashlib
-import hmac
 import logging
-import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 import ai
@@ -57,7 +54,6 @@ def my_connections(user: dict = Depends(auth.current_user)):
             }
             for p in ("strava", "whoop")
         ],
-        "shortcut": bool(user.get("shortcut_key_hash")),
     }
 
 
@@ -106,7 +102,7 @@ def disconnect(provider: str, user: dict = Depends(auth.current_user)):
 def sync_promise(promise: dict, conns: list[dict] | None = None) -> int:
     """Pull workouts from the owner's connected apps into this promise. Returns new proofs."""
     if promise["status"] != "active" or promise["proof"] in deals.APPLE_ONLY:
-        return 0  # steps and rings come from Apple Health (Shortcut) or screenshots
+        return 0  # steps and Apple rings come from screenshots
     conns = conns if conns is not None else db.where("connections", user_id=promise["user_id"])
     start, _ = fitness.window(promise)
     new = 0
@@ -155,89 +151,7 @@ def sync_now(promise_id: str, user: dict = Depends(auth.current_user)):
     return {"new_proofs": new, "promise": views.promise_view(db.get("promises", promise_id), user)}
 
 
-# ---------- Apple Health via the iPhone Shortcut ----------
-
-def _hash_key(key: str) -> str:
-    return hashlib.sha256(key.encode()).hexdigest()
-
-
-@router.post("/me/shortcut-key")
-def new_shortcut_key(user: dict = Depends(auth.current_user)):
-    """A fresh personal key for the iPhone Shortcut. Shown once; only its hash is kept."""
-    key = "pk_" + secrets.token_urlsafe(24)
-    db.update("users", user["id"], {"shortcut_key_hash": _hash_key(key)})
-    return {"key": key}
-
-
-class ActivityIn(BaseModel):
-    """What the iPhone Shortcut sends: today's totals from Apple Health / Apple Fitness."""
-    steps: float | None = Field(default=None, ge=0, le=200_000)
-    exercise_minutes: float | None = Field(default=None, ge=0, le=1_440)  # green Exercise ring
-    move_calories: float | None = Field(default=None, ge=0, le=20_000)    # red Move ring
-    date: str | None = None  # YYYY-MM-DD on the phone; defaults to today (UTC)
-
-
-def _ring_activity(proof: str, body: ActivityIn, day: str, now: datetime) -> Activity | None:
-    """One Apple Health activity for a promise of this kind, or None if the Shortcut didn't send that number."""
-    if proof == "steps" and body.steps is not None:
-        v = int(body.steps)
-        return Activity("health", f"health-{day}-steps-{v}", now, f"Apple Health, {v:,} steps", steps=v)
-    if proof == "exercise" and body.exercise_minutes is not None:
-        v = int(body.exercise_minutes)
-        return Activity("health", f"health-{day}-exercise-{v}", now, f"Apple Fitness, {v} exercise minutes", minutes=v)
-    if proof == "move" and body.move_calories is not None:
-        v = int(body.move_calories)
-        return Activity("health", f"health-{day}-move-{v}", now, f"Apple Fitness, {v:,} Move calories", calories=v)
-    return None
-
-
-@router.post("/shortcut/activity")
-@router.post("/shortcut/steps")  # older Shortcuts that only send steps
-def shortcut_activity(body: ActivityIn, x_shortcut_key: str | None = Header(default=None)):
-    if not x_shortcut_key or not x_shortcut_key.startswith("pk_"):
-        raise HTTPException(401, "Missing your Promise Keeper key. Copy it again from your account page.")
-    users = db.where("users", shortcut_key_hash=_hash_key(x_shortcut_key))
-    if not users or not hmac.compare_digest(users[0]["shortcut_key_hash"], _hash_key(x_shortcut_key)):
-        raise HTTPException(401, "That key doesn't match. Make a new one on your account page.")
-    if body.steps is None and body.exercise_minutes is None and body.move_calories is None:
-        raise HTTPException(422, "Send at least one of steps, exercise_minutes or move_calories.")
-    user = users[0]
-    now = _now()
-    day = now.date().isoformat()
-    if body.date:
-        try:
-            d = datetime.fromisoformat(body.date[:10]).date()
-        except ValueError:
-            raise HTTPException(422, "The date should look like 2026-11-07.")
-        if abs((d - now.date()).days) > 1:
-            raise HTTPException(422, "Only today's activity can be sent.")
-        day = d.isoformat()
-    results = []
-    for p in db.where("promises", user_id=user["id"]):
-        if p["status"] != "active" or p["proof"] not in deals.APPLE_ONLY:
-            continue
-        pot = db.get("pots", p["pot_id"])
-        if pot and views.parse_ts(pot["deadline"]) <= now:
-            continue
-        a = _ring_activity(p["proof"], body, day, now)
-        row = fitness.record(p, a) if a else None
-        if row:
-            results.append({"promise": p["summary"] or p["activity"], "counted": row["counted"], "reason": row["ai_reason"]})
-    sent = ", ".join(x for x in [
-        f"{int(body.steps):,} steps" if body.steps is not None else "",
-        f"{int(body.exercise_minutes)} exercise min" if body.exercise_minutes is not None else "",
-        f"{int(body.move_calories):,} Move cal" if body.move_calories is not None else "",
-    ] if x)
-    if not results:
-        return {"message": f"Got {sent}. You have no active step or ring promise right now.", "results": []}
-    counted = sum(1 for r in results if r["counted"])
-    msg = f"Got {sent}. " + (
-        f"Counted for {counted} promise{'s' if counted != 1 else ''}." if counted else results[0]["reason"]
-    )
-    return {"message": msg, "results": results}
-
-
-# ---------- Screenshots read by Gemini ----------
+# ---------- Screenshots read by the AI ----------
 
 def _today(tz: str) -> datetime:
     try:
@@ -253,6 +167,15 @@ def _fail(promise: dict, reason: str, path: str | None, phash: str | None, confi
         "ai_verdict": "fail", "ai_reason": reason[:300], "ai_confidence": confidence,
         "photo_path": path, "photo_hash": phash, "counted": False,
     })
+
+
+def _pretty_day(iso: str) -> str:
+    """'2026-11-03' -> 'Nov 3'; anything unreadable is shown as written."""
+    try:
+        d = datetime.fromisoformat(iso).date()
+    except ValueError:
+        return iso
+    return f"{d.strftime('%b')} {d.day}"
 
 
 def _user_hashes(user_id: str) -> list[str]:
@@ -300,14 +223,15 @@ def submit_screenshot(
     except Exception:
         log.exception("screenshot upload failed")
 
+    # The date on the screen must be today (in the person's own timezone). Any other date is refused,
+    # and a screen with no date or "Today" on it can't prove anything.
     today_s = today.date().isoformat()
-    yesterday_s = (today.date() - timedelta(days=1)).isoformat()
     shown = (r.get("date_shown") or "")[:10]
-    is_today = r["says_today"] or shown == today_s
-    if shown and shown not in (today_s, yesterday_s) and not r["says_today"]:
-        return verdict(_fail(promise, f"This screenshot is from {shown}. Send one from today.", path, phash, r["confidence"]))
-    if not is_today:
-        return verdict(_fail(promise, "We couldn't see that this is from today. Use a screen that says Today or shows the date.", path, phash, r["confidence"]))
+    if shown and shown != today_s and not r["says_today"]:
+        return verdict(_fail(promise, f"This screenshot is from {_pretty_day(shown)}. Send one from today.", path, phash, r["confidence"]))
+    if not (r["says_today"] or shown == today_s):
+        return verdict(_fail(promise, "We couldn't see a date on it. Use a screen that says Today or shows today's date.", path, phash, r["confidence"]))
+    day_label = f"today, {today.strftime('%b')} {today.day}"
     if r["looks_edited"]:
         return verdict(_fail(promise, "This screenshot looks edited, so it doesn't count.", path, phash, r["confidence"]))
     if r["confidence"] < SCREENSHOT_CONFIDENCE:
@@ -333,7 +257,7 @@ def submit_screenshot(
             want = {"steps": "a step count", "distance_km": "a distance", "minutes": "a workout time",
                     "calories": "Move calories"}[metric]
             return verdict(_fail(promise, f"We couldn't find {want} on this screenshot.", path, phash, r["confidence"]))
-    row = fitness.record(promise, a, ai_reason=f"{app}: {r['reason']}", confidence=r["confidence"], photo_path=path, photo_hash=phash)
+    row = fitness.record(promise, a, ai_reason=f"{app}, {day_label}: {r['reason']}", confidence=r["confidence"], photo_path=path, photo_hash=phash)
     if not row:
         return verdict(_fail(promise, "This doesn't fit the dates of your promise.", path, phash, r["confidence"]))
     return verdict(row)

@@ -157,7 +157,7 @@ function Closing({ session }) {
       </div>
       <footer className="relative border-t border-line">
         <p className="mx-auto max-w-7xl px-6 py-8 text-sm text-ink-soft md:px-10">
-          Built with PayPal and Gemini for the PayPal + AI hackathon. Payments run in the PayPal sandbox, so no real
+          Built with PayPal and Claude for the PayPal + AI hackathon. Payments run in the PayPal sandbox, so no real
           money moves.
         </p>
       </footer>

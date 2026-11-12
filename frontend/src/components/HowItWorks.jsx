@@ -131,7 +131,7 @@ export const STEPS = [
   },
   {
     title: 'Settle up',
-    body: 'Keep your promise and PayPal refunds you. Break it and your stake goes to your friend or a charity, automatically.',
+    body: 'Keep your promise and PayPal refunds you. Break it and your stake goes to your friend, automatically.',
     tint: 'bg-sun-soft',
     Art: SettleIllustration,
   },

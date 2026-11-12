@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { displayName, useAuth } from '../../auth'
 import { Avatar, useSignOut } from '../../app/AppShell'
 import { Card, CardHeader, Icon, PageTitle } from '../../app/ui'
-import { api, API_URL } from '../../api'
+import { api } from '../../api'
 import { startConnect, useConnections } from '../../components/FitnessProof'
 
 const APP_INFO = {
@@ -65,77 +65,25 @@ function ConnectedApps() {
             </div>
           )
         })}
-        <AppleHealth hasKey={conns?.shortcut} onKey={reload} />
+        <AppleHealth />
       </div>
       {error && <p className="px-5 pb-4 text-sm text-broke">{error}</p>}
     </Card>
   )
 }
 
-function AppleHealth({ hasKey, onKey }) {
-  const [key, setKey] = useState('')
-  const [copied, setCopied] = useState('')
-  const make = async () => {
-    const r = await api('/me/shortcut-key', { method: 'POST' })
-    setKey(r.key)
-    onKey()
-  }
-  const copy = (label, text) => {
-    navigator.clipboard?.writeText(text).then(() => {
-      setCopied(label)
-      setTimeout(() => setCopied(''), 1500)
-    })
-  }
-  const url = `${API_URL}/shortcut/activity`
+// Apple has no web login, so Apple Fitness is proven with a screenshot of the rings or steps.
+function AppleHealth() {
   return (
-    <div id="apple-health" className="px-5 py-4">
-      <div className="flex items-center gap-4">
-        <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#ff2d55] text-xl text-white">♥</span>
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold">
-            Apple Watch / Apple Fitness{' '}
-            {hasKey && <span className="ml-1 rounded-full bg-kept-soft px-2 py-0.5 text-xs font-semibold text-kept">Set up</span>}
-          </p>
-          <p className="text-sm text-ink-soft">An iPhone Shortcut sends today’s steps, Exercise minutes and Move calories here with one tap, or every evening by itself.</p>
-        </div>
-        <button onClick={make} className="rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-semibold hover:border-ink/25">
-          {hasKey ? 'New key' : 'Get my key'}
-        </button>
+    <div className="flex items-center gap-4 px-5 py-4">
+      <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#ff2d55] text-xl text-white">♥</span>
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold">Apple Watch / Apple Fitness</p>
+        <p className="text-sm text-ink-soft">
+          No setup needed. On your promise, upload a screenshot of your rings or today’s steps and the AI reads the
+          numbers and the date.
+        </p>
       </div>
-      {key && (
-        <div className="mt-4 rounded-2xl bg-canvas p-4 text-sm">
-          <p className="font-semibold">Your key (shown once, keep it private)</p>
-          <div className="mt-2 flex items-center gap-2">
-            <code className="min-w-0 flex-1 truncate rounded-lg bg-white px-3 py-2">{key}</code>
-            <button onClick={() => copy('key', key)} className="rounded-lg bg-ink px-3 py-2 font-semibold text-white">
-              {copied === 'key' ? 'Copied' : 'Copy'}
-            </button>
-          </div>
-        </div>
-      )}
-      <details className="mt-4 rounded-2xl border border-line p-4 text-sm leading-relaxed text-ink-soft" open={Boolean(key)}>
-        <summary className="cursor-pointer font-semibold text-ink">How to make the Shortcut (2 minutes, on your iPhone)</summary>
-        <ol className="mt-3 list-decimal space-y-2 pl-5">
-          <li>Open the <b className="text-ink">Shortcuts</b> app, tap <b className="text-ink">+</b>, name it <b className="text-ink">Send my activity</b>.</li>
-          <li>
-            Add <b className="text-ink">Find Health Samples</b> (type <b className="text-ink">Steps</b>, Start Date is Today), then{' '}
-            <b className="text-ink">Calculate Statistics</b> → <b className="text-ink">Sum</b>. Do the same twice more for{' '}
-            <b className="text-ink">Exercise Minutes</b> and <b className="text-ink">Active Energy</b> (that’s your Move ring).
-          </li>
-          <li>
-            Add <b className="text-ink">Get Contents of URL</b>: URL{' '}
-            <button onClick={() => copy('url', url)} className="rounded bg-white px-1.5 font-mono text-ink underline">
-              {copied === 'url' ? 'copied' : url}
-            </button>
-            , Method <b className="text-ink">POST</b>, Header <b className="text-ink">X-Shortcut-Key</b> = your key, Request Body{' '}
-            <b className="text-ink">JSON</b> with three Number fields: <b className="text-ink">steps</b>,{' '}
-            <b className="text-ink">exercise_minutes</b> and <b className="text-ink">move_calories</b>, each set to its Statistics result.
-          </li>
-          <li>Add <b className="text-ink">Show Result</b> so you see “Counted” or why not.</li>
-          <li>Optional: in <b className="text-ink">Automation</b>, run it every day at 9 PM.</li>
-        </ol>
-        <p className="mt-3">Your iPhone must reach this server. On your own computer that means the deployed app, not localhost.</p>
-      </details>
     </div>
   )
 }

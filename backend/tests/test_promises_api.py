@@ -117,8 +117,8 @@ def test_create_validation(client):
     past = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
     assert client.post("/promises", json=promise_body(deadline=past)).status_code == 422
     assert client.post("/promises", json=promise_body(proof="telepathy")).status_code == 422
-    assert client.post("/promises", json=promise_body(activity="walk 10,000 steps", proof="steps", gym_lat=None, gym_lng=None,
-                                                     recipient="charity")).status_code == 200
+    assert client.post("/promises", json=promise_body(activity="walk 10,000 steps", proof="steps", gym_lat=None, gym_lng=None)).status_code == 200
+    assert client.post("/promises", json=promise_body(recipient="charity")).status_code == 422  # missed money always goes to a friend
     # A gym promise without a map pin is fine: it can be proven with WHOOP or a screenshot.
     assert client.post("/promises", json=promise_body(gym_lat=None, gym_lng=None)).status_code == 200
 
@@ -213,3 +213,10 @@ def test_gym_hint_is_fixed_and_coords_dropped_for_non_gym(client, fake_db):
     assert fake_db.get("promises", c["promise_id"])["proof_hint"] == deals.GYM_HINT
     c = client.post("/promises", json=promise_body(activity="walk", proof="steps")).json()
     assert fake_db.get("promises", c["promise_id"])["gym_lat"] is None
+
+
+def test_charity_in_a_parsed_deal_leaves_the_friend_blank():
+    import deals
+    assert deals._friend("charity") == ""
+    assert deals._friend(" Alex ") == "Alex"
+    assert deals._friend(None) == ""

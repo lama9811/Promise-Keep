@@ -33,8 +33,8 @@ export default function DealSheet({ text, deal, setDeal, onEdit }) {
 
   const friendLabel = deal.friend_name || 'my friend'
   const problems = []
-  if (!deal.to_charity && !EMAIL_RE.test(deal.friend_email)) problems.push(`${deal.friend_name || 'your friend'}'s PayPal email`)
-  if (!deal.to_charity && deal.friend_email.trim().toLowerCase() === myEmail.toLowerCase())
+  if (!EMAIL_RE.test(deal.friend_email)) problems.push(`${deal.friend_name || 'your friend'}'s PayPal email`)
+  if (deal.friend_email.trim().toLowerCase() === myEmail.toLowerCase())
     problems.push('a friend other than you')
   if (stakeCents < 100 || stakeCents > 10000) problems.push('a stake from $1 to $100')
   if (!deal.deadline_local || new Date(deal.deadline_local) <= new Date()) problems.push('a deadline in the future')
@@ -64,7 +64,7 @@ export default function DealSheet({ text, deal, setDeal, onEdit }) {
         target_count: Number(deal.target_count),
         deadline: new Date(deal.deadline_local).toISOString(),
         stake_cents: stakeCents,
-        recipient: deal.to_charity ? 'charity' : deal.friend_email.trim(),
+        recipient: deal.friend_email.trim(),
         summary: deal.summary,
         gym_lat: deal.proof === 'gym' ? gym?.lat : null,
         gym_lng: deal.proof === 'gym' ? gym?.lng : null,
@@ -150,26 +150,14 @@ export default function DealSheet({ text, deal, setDeal, onEdit }) {
             className="bg-transparent [field-sizing:content] focus:outline-none"
           />
         </span>{' '}
-        goes to{' '}
-        <select
-          aria-label="Who gets the money"
-          value={deal.to_charity ? 'charity' : 'friend'}
-          onChange={(e) => setDeal({ ...deal, to_charity: e.target.value === 'charity' })}
-          className={`${blank} cursor-pointer appearance-none`}
-        >
-          <option value="friend">{friendLabel}</option>
-          <option value="charity">charity</option>
-        </select>
-        .
+        goes to <span className={blank}>{friendLabel}</span>.
       </p>
 
       <div className="mt-8 space-y-6">
-        {!deal.to_charity && (
-          <label className="block text-sm font-medium">
-            {deal.friend_name ? `${deal.friend_name}'s` : "Your friend's"} PayPal email
-            <input type="email" value={deal.friend_email} onChange={set('friend_email')} placeholder="name@example.com" className={field} />
-          </label>
-        )}
+        <label className="block text-sm font-medium">
+          {deal.friend_name ? `${deal.friend_name}'s` : "Your friend's"} PayPal email
+          <input type="email" value={deal.friend_email} onChange={set('friend_email')} placeholder="name@example.com" className={field} />
+        </label>
 
         <div>
           <p className="text-sm font-medium">How I'll prove it</p>

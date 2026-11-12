@@ -18,12 +18,12 @@ function greeting() {
 
 // Ready-made promises. Tapping one sends it straight to the AI.
 const IDEAS = [
-  { icon: 'steps', title: '10k steps a day', text: '10,000 steps every day this week or $20 to charity', stake: '$20', proof: 'Apple Health or screenshot', tint: 'bg-cobalt-soft', ink: 'text-cobalt' },
-  { icon: 'gym', title: 'Gym 4x a week', text: 'gym 4 times this week or $25 to charity', stake: '$25', proof: 'Check-in, WHOOP or gym app', tint: 'bg-kept-soft', ink: 'text-kept' },
-  { icon: 'run', title: 'Run 5 km 3x', text: 'run 5 km 3 times this week or $15 to charity', stake: '$15', proof: 'Strava', tint: 'bg-sun-soft', ink: 'text-[#a07000]' },
-  { icon: 'flame', title: '45-min workouts', text: 'work out 45 minutes 5 times this week or $20 to charity', stake: '$20', proof: 'WHOOP or Strava', tint: 'bg-broke-soft', ink: 'text-broke' },
-  { icon: 'ring', title: 'Close Exercise ring', text: 'close my exercise ring every day this week or $20 to charity', stake: '$20', proof: 'Apple Watch', tint: 'bg-kept-soft', ink: 'text-kept' },
-  { icon: 'ring', title: '500 Move calories', text: 'burn 500 move calories 5 days this week or $15 to charity', stake: '$15', proof: 'Apple Watch', tint: 'bg-broke-soft', ink: 'text-broke' },
+  { icon: 'steps', title: '10k steps a day', text: '10,000 steps every day this week or $20 to Alex', stake: '$20', proof: 'Apple Health or screenshot', tint: 'bg-cobalt-soft', ink: 'text-cobalt' },
+  { icon: 'gym', title: 'Gym 4x a week', text: 'gym 4 times this week or $25 to Alex', stake: '$25', proof: 'Check-in, WHOOP or gym app', tint: 'bg-kept-soft', ink: 'text-kept' },
+  { icon: 'run', title: 'Run 5 km 3x', text: 'run 5 km 3 times this week or $15 to Alex', stake: '$15', proof: 'Strava', tint: 'bg-sun-soft', ink: 'text-[#a07000]' },
+  { icon: 'flame', title: '45-min workouts', text: 'work out 45 minutes 5 times this week or $20 to Alex', stake: '$20', proof: 'WHOOP or Strava', tint: 'bg-broke-soft', ink: 'text-broke' },
+  { icon: 'ring', title: 'Close Exercise ring', text: 'close my exercise ring every day this week or $20 to Alex', stake: '$20', proof: 'Apple Watch', tint: 'bg-kept-soft', ink: 'text-kept' },
+  { icon: 'ring', title: '500 Move calories', text: 'burn 500 move calories 5 days this week or $15 to Alex', stake: '$15', proof: 'Apple Watch', tint: 'bg-broke-soft', ink: 'text-broke' },
 ]
 
 function Hero({ first, money, loading }) {
@@ -413,9 +413,9 @@ function ThisWeek({ week, loading }) {
 function HowProofWorks() {
   const steps = [
     ['run', 'Strava and WHOOP', 'Connect once. Runs and workouts you log there count by themselves.', 'bg-sun-soft text-[#c2410c]'],
-    ['steps', 'Apple Watch steps', 'A one-tap iPhone Shortcut sends today’s steps from Apple Health.', 'bg-broke-soft text-broke'],
+    ['steps', 'Apple Watch and rings', 'Upload a screenshot of your rings or steps from the Fitness or Health app.', 'bg-broke-soft text-broke'],
     ['gym', 'Gym check-in', 'Your phone checks you’re at your gym for 30 minutes, then a quick live photo.', 'bg-kept-soft text-kept'],
-    ['spark', 'AI reads screenshots', 'Upload any fitness screenshot. Gemini reads the number and the date.', 'bg-cobalt-soft text-cobalt'],
+    ['spark', 'AI reads screenshots', 'Upload any fitness screenshot. Claude reads the number and the date.', 'bg-cobalt-soft text-cobalt'],
   ]
   return (
     <Card>

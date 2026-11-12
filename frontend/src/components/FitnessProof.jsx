@@ -1,7 +1,6 @@
 // The fitness ways to prove a promise: sync Strava / WHOOP, send Apple Health steps with
-// the iPhone Shortcut, or upload a screenshot that the AI reads.
+// or upload a screenshot that the AI reads (the only way for Apple Fitness and steps).
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router'
 import { motion } from 'motion/react'
 import { api, apiForm } from '../api'
 import { kickCoin, setCoin } from '../three/coinStore'
@@ -12,14 +11,13 @@ const BRAND = { strava: 'bg-[#fc4c02] text-white', whoop: 'bg-ink text-white' }
 
 // Which connected apps can prove which kind of promise.
 const APPS_FOR = { gym: ['whoop', 'strava'], run: ['strava', 'whoop'], workout: ['whoop', 'strava'], steps: [], exercise: [], move: [] }
-const APPLE = ['steps', 'exercise', 'move']
 const SHOT_HINT = {
-  steps: 'Your Health, Watch, Fitbit or Google Fit screen showing today’s steps',
+  steps: 'Your Health, Fitbit or Google Fit screen showing today’s steps and the word Today or today’s date',
   run: 'Your run summary from Strava, Nike Run Club or Apple Fitness, with distance and date',
   workout: 'Your workout summary showing how long it lasted and the date',
   gym: 'Your gym app’s check-in screen (Planet Fitness, LA Fitness, Crunch…)',
-  exercise: 'Your Apple Fitness rings for today, showing Exercise minutes',
-  move: 'Your Apple Fitness rings for today, showing Move calories',
+  exercise: 'Your Fitness app rings for today, showing Exercise minutes and the date',
+  move: 'Your Fitness app rings for today, showing Move calories and the date',
 }
 
 export function useConnections() {
@@ -27,7 +25,7 @@ export function useConnections() {
   const load = () =>
     api('/me/connections')
       .then(setData)
-      .catch(() => setData({ providers: [], shortcut: false }))
+      .catch(() => setData({ providers: [] }))
   useEffect(() => {
     load()
   }, [])
@@ -123,22 +121,6 @@ export default function FitnessProof({ promise, onChange, onResult, setError }) 
       transition={{ duration: 0.5, ease: EASE }}
       className="space-y-3"
     >
-      {APPLE.includes(promise.proof) && (
-        <Row
-          icon={<span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#ff2d55] text-lg text-white">♥</span>}
-          title="Apple Watch / Apple Fitness"
-          text={
-            conns?.shortcut
-              ? 'Run your “Send my activity” Shortcut on your iPhone. It sends today’s steps and rings here.'
-              : 'Set up the one-tap iPhone Shortcut once, then send your steps and rings every evening.'
-          }
-        >
-          <Link to="/app/account#apple-health" className={`${btn} border border-line bg-surface hover:border-ink/25`}>
-            {conns?.shortcut ? 'Shortcut help' : 'Set it up'}
-          </Link>
-        </Row>
-      )}
-
       {apps.map((c) => (
         <Row
           key={c.provider}
